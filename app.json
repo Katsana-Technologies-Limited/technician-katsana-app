@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "technician-katsana-app",
+    "name": "Katsana Technician",
     "slug": "technician-katsana-app",
+    "scheme": "technician-katsana",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,7 +12,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0d3b3d",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -22,7 +23,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Katsana Technician uses the camera to capture the customer handover photo during installation."
+        }
+      ]
     ]
   }
 }

@@ -1,0 +1,37 @@
+// Mirrors technician-katsana's brand palette (src/index.css --color-brand-*)
+// so the native app reads as the same product, not a re-skin.
+export const colors = {
+  brand50: "#f0faf8",
+  brand100: "#d9f2ee",
+  brand500: "#14958a",
+  brand600: "#157a72",
+  brand700: "#166361",
+  brand800: "#124a4a",
+  brand900: "#0d3b3d",
+  brand950: "#0a2e2f",
+
+  slate50: "#f8fafc",
+  slate100: "#f1f5f9",
+  slate200: "#e2e8f0",
+  slate300: "#cbd5e1",
+  slate400: "#94a3b8",
+  slate500: "#64748b",
+  slate600: "#475569",
+  slate700: "#334155",
+  slate800: "#1e293b",
+
+  white: "#ffffff",
+  emerald500: "#10b981",
+  emerald100: "#d1fae5",
+  emerald600: "#059669",
+  amber500: "#f59e0b",
+  amber100: "#fef3c7",
+  amber600: "#d97706",
+  rose500: "#f43f5e",
+  rose100: "#ffe4e6",
+  rose600: "#e11d48",
+  sky100: "#e0f2fe",
+  sky600: "#0284c7",
+  violet100: "#ede9fe",
+  violet600: "#7c3aed",
+} as const;
