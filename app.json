@@ -8,16 +8,21 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.katsanatech.technician"
     },
     "android": {
+      "package": "com.katsanatech.technician",
       "adaptiveIcon": {
         "backgroundColor": "#0d3b3d",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,6 +35,11 @@
           "cameraPermission": "Katsana Technician uses the camera to capture the customer handover photo during installation."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ffa9e9cc-90ce-4402-b1a2-2e4a4e8c6e04"
+      }
+    }
   }
 }
