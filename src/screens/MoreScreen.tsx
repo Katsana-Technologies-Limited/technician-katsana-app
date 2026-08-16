@@ -5,14 +5,16 @@ import { Screen } from "@/components/Screen";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { useAuth } from "@/context/AuthContext";
+import { useSidebar } from "@/context/SidebarContext";
 import { colors } from "@/theme/colors";
 
 export default function MoreScreen() {
   const { technician, logout } = useAuth();
+  const { open } = useSidebar();
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="More" />
+      <TopBar title="More" onMenuPress={() => open("More")} />
       <Screen>
         <Card style={styles.profileCard}>
           <View style={styles.avatar}>

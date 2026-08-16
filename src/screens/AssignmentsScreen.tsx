@@ -6,6 +6,7 @@ import { Screen } from "@/components/Screen";
 import { TopBar } from "@/components/TopBar";
 import { Input } from "@/components/Input";
 import { AssignmentCard } from "@/components/AssignmentCard";
+import { useSidebar } from "@/context/SidebarContext";
 import { assignments, type AssignmentStatus } from "@/lib/mockData";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
@@ -20,6 +21,7 @@ const TABS: Array<{ key: string; label: string; status?: AssignmentStatus }> = [
 
 export default function AssignmentsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { open } = useSidebar();
   const [tab, setTab] = useState("All");
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -39,7 +41,11 @@ export default function AssignmentsScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="My Assignments" onSearchPress={() => setShowSearch((v) => !v)} />
+      <TopBar
+        title="My Assignments"
+        onMenuPress={() => open("Assignments")}
+        onSearchPress={() => setShowSearch((v) => !v)}
+      />
       <Screen>
         {showSearch && (
           <Input

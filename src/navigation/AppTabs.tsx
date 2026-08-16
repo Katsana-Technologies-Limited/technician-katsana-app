@@ -4,19 +4,23 @@ import DashboardScreen from "@/screens/DashboardScreen";
 import AssignmentsScreen from "@/screens/AssignmentsScreen";
 import { PlaceholderScreen } from "@/screens/PlaceholderScreen";
 import MoreScreen from "@/screens/MoreScreen";
+import { Sidebar } from "@/components/Sidebar";
+import { SidebarProvider, useSidebar } from "@/context/SidebarContext";
 import { colors } from "@/theme/colors";
 import type { TabParamList } from "./types";
 
 const Tab = createBottomTabNavigator<TabParamList & { More: undefined }>();
 
 function InventoryScreen() {
-  return <PlaceholderScreen title="Inventory" />;
+  const { open } = useSidebar();
+  return <PlaceholderScreen title="Inventory" onMenuPress={() => open("Inventory")} />;
 }
 function HistoryScreen() {
-  return <PlaceholderScreen title="History" />;
+  const { open } = useSidebar();
+  return <PlaceholderScreen title="History" onMenuPress={() => open("History")} />;
 }
 
-export function AppTabs() {
+function Tabs() {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -62,5 +66,17 @@ export function AppTabs() {
         }}
       />
     </Tab.Navigator>
+  );
+}
+
+// The hamburger button on each tab screen's TopBar opens this drawer (mirrors
+// technician-katsana's mobile slide-in nav) - SidebarProvider/Sidebar live
+// here, above the tab navigator, so the drawer overlays the bottom tab bar too.
+export function AppTabs() {
+  return (
+    <SidebarProvider>
+      <Tabs />
+      <Sidebar />
+    </SidebarProvider>
   );
 }

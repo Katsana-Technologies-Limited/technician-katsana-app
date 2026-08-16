@@ -16,6 +16,7 @@ import { Badge } from "@/components/Badge";
 import { StatCard } from "@/components/StatCard";
 import { AssignmentCard } from "@/components/AssignmentCard";
 import { useAuth } from "@/context/AuthContext";
+import { useSidebar } from "@/context/SidebarContext";
 import { dashboardStats, assignments } from "@/lib/mockData";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
@@ -31,12 +32,13 @@ const STAT_CARDS = [
 
 export default function DashboardScreen() {
   const { technician } = useAuth();
+  const { open } = useSidebar();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const todaysSchedule = assignments.filter((a) => a.scheduleLabel.startsWith("Today"));
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Dashboard" />
+      <TopBar title="Dashboard" onMenuPress={() => open("Home")} />
       <Screen>
         <Card style={styles.greetingCard}>
           <View style={styles.greetingLeft}>

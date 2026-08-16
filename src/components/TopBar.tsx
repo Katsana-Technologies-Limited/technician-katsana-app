@@ -28,7 +28,7 @@ export function TopBar({
 }: TopBarProps) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.bar, { paddingTop: insets.top + 10 }]}>
+    <View style={[styles.bar, { paddingTop: insets.top + 18 }]}>
       <View style={styles.left}>
         <Pressable onPress={onBack ?? onMenuPress} hitSlop={10}>
           {onBack ? (
@@ -66,8 +66,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 18,
     backgroundColor: colors.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.slate200,
