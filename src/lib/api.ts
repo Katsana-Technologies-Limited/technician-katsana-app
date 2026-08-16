@@ -6,7 +6,7 @@ import { getToken, clearToken } from "./auth";
 // vts-backend-katsana, same backend technician-katsana (web) already talks
 // to. Falls back to localhost for a same-machine dev server; on a physical
 // device or emulator this must be your machine's LAN IP instead.
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:4002";
 
 export const api = axios.create({
   baseURL: API_URL,
