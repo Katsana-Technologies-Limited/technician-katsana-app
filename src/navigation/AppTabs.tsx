@@ -1,4 +1,5 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Home, ClipboardList, Package, History, MoreHorizontal } from "lucide-react-native";
 import DashboardScreen from "@/screens/DashboardScreen";
 import AssignmentsScreen from "@/screens/AssignmentsScreen";
@@ -21,17 +22,23 @@ function HistoryScreen() {
 }
 
 function Tabs() {
+  // On Android 15+ (edge-to-edge is enforced from targetSdk 35 up), content
+  // draws behind the system gesture/nav bar by default - without adding
+  // insets.bottom here the tab bar's icons/labels render partly underneath
+  // it and become unclickable, which is what the screenshot showed.
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.brand700,
-        tabBarInactiveTintColor: colors.slate400,
+        tabBarActiveTintColor: colors.brand800,
+        tabBarInactiveTintColor: colors.slate700,
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         tabBarStyle: {
           borderTopColor: colors.slate200,
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 6,
         },
       }}

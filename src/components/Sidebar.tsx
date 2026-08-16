@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { View, Text, Pressable, StyleSheet, Animated } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -66,9 +66,11 @@ export function Sidebar() {
         style={[styles.panel, { paddingTop: insets.top + 16, transform: [{ translateX }] }]}
       >
         <View style={styles.header}>
-          <View style={styles.logoBadge}>
-            <Text style={styles.logoText}>KATSANA</Text>
-          </View>
+          <Image
+            source={require("../../assets/logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Pressable onPress={close} hitSlop={10}>
             <X size={20} color={colors.slate400} />
           </Pressable>
@@ -145,8 +147,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.slate100,
   },
-  logoBadge: { backgroundColor: colors.brand900, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
-  logoText: { color: colors.white, fontWeight: "800", fontSize: 12, letterSpacing: 1 },
+  logo: { width: 120, height: 32 },
   nav: { flex: 1, paddingHorizontal: 12, paddingTop: 12, gap: 4 },
   navItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 },
   navItemActive: { backgroundColor: colors.brand700 },
