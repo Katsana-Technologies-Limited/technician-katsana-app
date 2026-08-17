@@ -69,6 +69,16 @@ export default function InstallationProgressScreen() {
   ];
   const currentIdx = steps.findIndex((s) => !s.done);
 
+  // Already in progress - skip back over Start Installation (already
+  // submitted) and go straight into the wizard, which resumes at whichever
+  // step was last saved. Nothing left to do once Completed.
+  const nextAction =
+    raw.status === "In Progress"
+      ? { label: "Continue Installation", onPress: () => navigation.navigate("InstallationForm", { id }) }
+      : raw.status === "Completed"
+        ? null
+        : { label: "Start Installation", onPress: () => navigation.navigate("StartInstallation", { id }) };
+
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Installation Progress" onBack={() => navigation.goBack()} />
@@ -120,18 +130,18 @@ export default function InstallationProgressScreen() {
         </Card>
       </Screen>
 
-      <View style={[styles.stickyCta, { paddingBottom: insets.bottom + 10 }]}>
-        <Button onPress={() => navigation.navigate("StartInstallation", { id })}>
-          Start Installation
-        </Button>
-        <Button
-          variant="danger"
-          onPress={() => Alert.alert("Issue reported to dispatch")}
-          icon={<AlertTriangle size={16} color={colors.rose600} />}
-        >
-          Report an Issue
-        </Button>
-      </View>
+      {nextAction && (
+        <View style={[styles.stickyCta, { paddingBottom: insets.bottom + 10 }]}>
+          <Button onPress={nextAction.onPress}>{nextAction.label}</Button>
+          <Button
+            variant="danger"
+            onPress={() => Alert.alert("Issue reported to dispatch")}
+            icon={<AlertTriangle size={16} color={colors.rose600} />}
+          >
+            Report an Issue
+          </Button>
+        </View>
+      )}
     </View>
   );
 }

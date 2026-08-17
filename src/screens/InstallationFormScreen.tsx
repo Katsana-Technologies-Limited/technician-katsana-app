@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { View, Text, Image, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { View, Text, Image, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, AppState } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -78,6 +78,120 @@ export default function InstallationFormScreen() {
     setPrefilledMobile(incomingMobile);
   }
 
+  // Resume at whichever step was last saved (with that data pre-filled),
+  // instead of always restarting at step 1 - this is driven by what's
+  // already saved server-side (installation_records), not local/app state,
+  // so it survives the app being closed, backgrounded, or the technician
+  // navigating away to the dashboard and coming back later. Runs once per
+  // assignment id, same pattern as prefilledMobile above.
+  const [initializedFor, setInitializedFor] = useState<number | null>(null);
+  if (detail?.assignment && initializedFor !== id) {
+    setInitializedFor(id);
+    const installation = detail.installation;
+    const step1Done = Boolean(
+      installation?.installation_location &&
+        installation?.ign_connection &&
+        installation?.relay_installed,
+    );
+    const step2Done = Boolean(
+      installation?.fuel_type &&
+        installation?.acc_wire_connected &&
+        installation?.engine_cutoff_configured &&
+        installation?.sos_button_installed,
+    );
+    setStep(step2Done ? 3 : step1Done ? 2 : 1);
+    if (installation) {
+      setDevice({
+        location: installation.installation_location || "",
+        ignConnection: installation.ign_connection || "",
+        relay: installation.relay_installed || "",
+      });
+      setConfig((c) => ({
+        ...c,
+        fuelType: installation.fuel_type || "",
+        batteryVoltage: installation.battery_voltage || "",
+        accWire: (installation.acc_wire_connected as YN) || "",
+        engineCutoff: (installation.engine_cutoff_configured as YN) || "",
+        sosButton: (installation.sos_button_installed as YN) || "",
+      }));
+      setHandover((h) => ({ ...h, remarks: installation.remarks || h.remarks }));
+    }
+  }
+
+  // Auto-save the current step's fields as they change, not just when
+  // "Next" is pressed - so in-progress edits survive the app dying before
+  // that. Refs (not state) back the AppState flush below since a listener
+  // registered once must always read the *latest* values, not whatever was
+  // in scope when it was registered.
+  const stepRef = useRef(step);
+  const deviceRef = useRef(device);
+  const configRef = useRef(config);
+  const remarksRef = useRef(handover.remarks);
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
+  useEffect(() => {
+    deviceRef.current = device;
+  }, [device]);
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+  useEffect(() => {
+    remarksRef.current = handover.remarks;
+  }, [handover.remarks]);
+
+  const flushCurrentStep = () => {
+    if (!id || initializedFor !== id) return;
+    if (stepRef.current === 1) {
+      const d = deviceRef.current;
+      if (!d.location && !d.ignConnection && !d.relay) return;
+      api
+        .patch(`/api/technician/assignments/${id}/installation`, {
+          ...(d.location && { installation_location: d.location }),
+          ...(d.ignConnection && { ign_connection: d.ignConnection }),
+          ...(d.relay && { relay_installed: d.relay }),
+        })
+        .catch(() => {});
+    } else if (stepRef.current === 2) {
+      const c = configRef.current;
+      if (!c.fuelType && !c.batteryVoltage && !c.accWire && !c.engineCutoff && !c.sosButton) return;
+      api
+        .patch(`/api/technician/assignments/${id}/installation`, {
+          ...(c.fuelType && { fuel_type: c.fuelType }),
+          ...(c.batteryVoltage && { battery_voltage: c.batteryVoltage }),
+          ...(c.accWire && { acc_wire_connected: c.accWire }),
+          ...(c.engineCutoff && { engine_cutoff_configured: c.engineCutoff }),
+          ...(c.sosButton && { sos_button_installed: c.sosButton }),
+        })
+        .catch(() => {});
+    } else if (stepRef.current === 3) {
+      const r = remarksRef.current;
+      if (!r) return;
+      api
+        .patch(`/api/technician/assignments/${id}/installation`, { remarks: r })
+        .catch(() => {});
+    }
+  };
+
+  // Debounced save while actively editing (normal case).
+  useEffect(() => {
+    if (!id || initializedFor !== id) return;
+    const timer = setTimeout(flushCurrentStep, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [device, config, handover.remarks, step, id, initializedFor]);
+
+  // Immediate flush the moment the app leaves the foreground - covers the
+  // case where the OS kills the app shortly after backgrounding, before the
+  // 800ms debounce above ever gets a chance to fire.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active") flushCurrentStep();
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, initializedFor]);
+
   if (isLoading) {
     return (
       <View style={{ flex: 1 }}>
@@ -106,6 +220,13 @@ export default function InstallationFormScreen() {
 
   if (!detail?.assignment) {
     navigation.goBack();
+    return null;
+  }
+
+  // Once completed, this flow is locked - no editing an already-submitted
+  // installation from here.
+  if (detail.assignment.status === "Completed") {
+    navigation.replace("AssignmentDetails", { id });
     return null;
   }
 

@@ -10,6 +10,7 @@ import { Input } from "@/components/Input";
 import { SelectField } from "@/components/SelectField";
 import { Button } from "@/components/Button";
 import { api } from "@/lib/api";
+import { useAssignmentDetail } from "@/hooks/useAssignments";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
@@ -25,6 +26,7 @@ export default function StartInstallationScreen() {
   const { id } = route.params;
   const [isSaving, setIsSaving] = useState(false);
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
+  const { detail } = useAssignmentDetail(id);
 
   useEffect(() => {
     api
@@ -32,6 +34,13 @@ export default function StartInstallationScreen() {
       .then((res) => setVehicleTypes(res.data?.vehicle_types || []))
       .catch(() => setVehicleTypes([]));
   }, []);
+
+  // Defensive guard against reaching this screen for a job that's already
+  // done - the wizard is locked once Completed (see InstallationFormScreen).
+  if (detail?.assignment?.status === "Completed") {
+    navigation.replace("AssignmentDetails", { id });
+    return null;
+  }
 
   const [form, setForm] = useState({
     vehicleNumber: "",

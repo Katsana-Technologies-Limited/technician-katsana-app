@@ -156,7 +156,13 @@ export default function AssignmentDetailsScreen() {
         </Button>
         {assignment.status === "New" ? (
           <Button onPress={() => setConfirmOpen(true)}>Accept Assignment</Button>
-        ) : (
+        ) : assignment.status === "In Progress" ? (
+          // Already past Start Installation - go straight into the wizard,
+          // which resumes at whichever step was last saved.
+          <Button onPress={() => navigation.navigate("InstallationForm", { id })}>
+            Continue
+          </Button>
+        ) : assignment.status === "Completed" ? null : (
           <Button onPress={() => navigation.navigate("InstallationProgress", { id })}>
             Continue
           </Button>
