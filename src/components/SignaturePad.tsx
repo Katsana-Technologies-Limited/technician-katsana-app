@@ -35,10 +35,35 @@ export const SignaturePad = forwardRef<
     },
   }));
 
+  // Commits whatever's been drawn so far into `paths` - shared by a normal
+  // finger-lift (onPanResponderRelease) and the termination safety net below.
+  const commitStroke = () => {
+    if (!pathRef.current) return;
+    setPaths((prev) => {
+      const next = [...prev, pathRef.current];
+      onChange(next.length > 0);
+      return next;
+    });
+    pathRef.current = "";
+    setLivePath("");
+  };
+
   const panResponder = useRef(
     PanResponder.create({
+      // This pad lives inside a ScrollView (Screen.tsx) - claiming only at
+      // the bubble phase (onStartShouldSetPanResponder/onMoveShould...)
+      // means the ScrollView gets first look and can steal a
+      // slightly-vertical signing stroke as a scroll gesture mid-draw,
+      // which is exactly what made the signature vanish right as the
+      // finger lifted (the stroke was terminated, never released, so it
+      // was never committed to `paths` or saved). Claiming at the capture
+      // phase and refusing to give the responder back once granted fixes
+      // this outright.
       onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (e) => {
         const { locationX, locationY } = e.nativeEvent;
         pathRef.current = `M${locationX.toFixed(1)},${locationY.toFixed(1)}`;
@@ -49,15 +74,11 @@ export const SignaturePad = forwardRef<
         pathRef.current += ` L${locationX.toFixed(1)},${locationY.toFixed(1)}`;
         setLivePath(pathRef.current);
       },
-      onPanResponderRelease: () => {
-        setPaths((prev) => {
-          const next = [...prev, pathRef.current];
-          onChange(next.length > 0);
-          return next;
-        });
-        pathRef.current = "";
-        setLivePath("");
-      },
+      onPanResponderRelease: commitStroke,
+      // Safety net in case something still forces termination (e.g. an
+      // incoming call, an OS-level gesture) - commit rather than silently
+      // drop whatever was drawn so far.
+      onPanResponderTerminate: commitStroke,
     }),
   ).current;
 
