@@ -1,11 +1,14 @@
 export type RootStackParamList = {
   Login: undefined;
   Tabs: undefined;
-  AssignmentDetails: { id: string };
-  InstallationProgress: { id: string };
-  StartInstallation: { id: string };
-  InstallationForm: { id: string };
-  InstallationCompleted: { id: string };
+  // Numeric assignments.id (the real primary key), not the display
+  // KTS-YYYY-NNNNN assignment number - mirrors technician-katsana (web)'s
+  // route param, which is also the numeric id.
+  AssignmentDetails: { id: number };
+  InstallationProgress: { id: number };
+  StartInstallation: { id: number };
+  InstallationForm: { id: number };
+  InstallationCompleted: { id: number };
 };
 
 export type TabParamList = {

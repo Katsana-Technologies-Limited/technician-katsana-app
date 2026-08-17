@@ -3,7 +3,7 @@ import { MapPin, Clock, ClipboardList } from "lucide-react-native";
 import { Card } from "./Card";
 import { Badge, type BadgeVariant } from "./Badge";
 import { colors } from "@/theme/colors";
-import type { Assignment } from "@/lib/mockData";
+import type { DisplayAssignment } from "@/lib/assignments";
 
 const STATUS_BADGE: Record<string, BadgeVariant> = {
   New: "new",
@@ -18,7 +18,7 @@ export function AssignmentCard({
   assignment,
   onPress,
 }: {
-  assignment: Assignment;
+  assignment: DisplayAssignment;
   onPress: () => void;
 }) {
   return (
@@ -29,7 +29,7 @@ export function AssignmentCard({
         </View>
         <View style={styles.body}>
           <View style={styles.topRow}>
-            <Text style={styles.id}>{assignment.id}</Text>
+            <Text style={styles.id}>{assignment.assignmentNumber}</Text>
             <Badge variant={STATUS_BADGE[assignment.status]}>{assignment.status}</Badge>
           </View>
           <Text style={styles.name}>{assignment.customerName}</Text>
@@ -37,9 +37,7 @@ export function AssignmentCard({
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <MapPin size={12} color={colors.slate400} />
-              <Text style={styles.metaText}>
-                {assignment.area}, {assignment.city}
-              </Text>
+              <Text style={styles.metaText}>{assignment.city}</Text>
             </View>
             <View style={styles.metaItem}>
               <Clock size={12} color={colors.slate400} />

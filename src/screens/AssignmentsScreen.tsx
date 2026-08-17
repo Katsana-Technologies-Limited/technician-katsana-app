@@ -7,7 +7,8 @@ import { TopBar } from "@/components/TopBar";
 import { Input } from "@/components/Input";
 import { AssignmentCard } from "@/components/AssignmentCard";
 import { useSidebar } from "@/context/SidebarContext";
-import { assignments, type AssignmentStatus } from "@/lib/mockData";
+import { useAssignmentsList } from "@/hooks/useAssignments";
+import { toDisplayAssignment, type AssignmentStatus } from "@/lib/assignments";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
@@ -25,6 +26,8 @@ export default function AssignmentsScreen() {
   const [tab, setTab] = useState("All");
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const { assignments: rawAssignments, isLoading } = useAssignmentsList();
+  const assignments = rawAssignments.map(toDisplayAssignment);
 
   const filtered = useMemo(() => {
     return assignments.filter((a) => {
@@ -32,12 +35,12 @@ export default function AssignmentsScreen() {
       const q = search.toLowerCase();
       const matchesSearch =
         !q ||
-        a.id.toLowerCase().includes(q) ||
+        a.assignmentNumber.toLowerCase().includes(q) ||
         a.customerName.toLowerCase().includes(q) ||
         a.vehicleNumber.toLowerCase().includes(q);
       return matchesTab && matchesSearch;
     });
-  }, [tab, search]);
+  }, [tab, search, assignments]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -71,7 +74,9 @@ export default function AssignmentsScreen() {
           })}
         </View>
 
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <Text style={styles.empty}>Loading assignments...</Text>
+        ) : filtered.length === 0 ? (
           <Text style={styles.empty}>No assignments match your filters.</Text>
         ) : (
           filtered.map((a) => (

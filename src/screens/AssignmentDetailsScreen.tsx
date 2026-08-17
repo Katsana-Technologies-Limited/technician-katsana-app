@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, Pressable, StyleSheet, Modal, Linking, Alert } from "react-native";
+import { View, Text, Pressable, StyleSheet, Modal, Linking, Alert, ActivityIndicator } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RouteProp } from "@react-navigation/native";
@@ -11,7 +11,9 @@ import { Card } from "@/components/Card";
 import { Badge, type BadgeVariant } from "@/components/Badge";
 import { InfoRow } from "@/components/InfoRow";
 import { Button } from "@/components/Button";
-import { getAssignmentById } from "@/lib/mockData";
+import { api } from "@/lib/api";
+import { useAssignmentDetail } from "@/hooks/useAssignments";
+import { toDisplayAssignment } from "@/lib/assignments";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
@@ -26,15 +28,30 @@ export default function AssignmentDetailsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, "AssignmentDetails">>();
   const insets = useSafeAreaInsets();
-  const assignment = getAssignmentById(route.params.id);
+  const { id } = route.params;
+  const { detail, isLoading, refetch } = useAssignmentDetail(id);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
 
-  if (!assignment) {
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1 }}>
+        <TopBar title="Assignment Details" onBack={() => navigation.goBack()} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator color={colors.brand700} />
+        </View>
+      </View>
+    );
+  }
+
+  if (!detail?.assignment) {
     navigation.goBack();
     return null;
   }
 
-  const callCustomer = () => Linking.openURL(`tel:${assignment.customerMobile.replace(/-/g, "")}`);
+  const assignment = toDisplayAssignment(detail.assignment);
+
+  const callCustomer = () => Linking.openURL(`tel:${assignment.customerMobile.replace(/\D/g, "")}`);
   const openDirections = () =>
     Linking.openURL(
       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -42,13 +59,22 @@ export default function AssignmentDetailsScreen() {
       )}`,
     );
 
-  const handleAccept = () => {
-    setConfirmOpen(false);
-    navigation.navigate("InstallationProgress", { id: assignment.id });
+  const handleAccept = async () => {
+    setIsAccepting(true);
+    try {
+      await api.post(`/api/technician/assignments/${id}/accept`);
+      setConfirmOpen(false);
+      await refetch();
+      navigation.navigate("InstallationProgress", { id });
+    } catch (err: any) {
+      Alert.alert(err?.response?.data?.message || "Failed to accept assignment");
+    } finally {
+      setIsAccepting(false);
+    }
   };
 
   const openMoreActions = () => {
-    Alert.alert(assignment.id, undefined, [
+    Alert.alert(assignment.assignmentNumber, undefined, [
       { text: "Directions", onPress: openDirections },
       { text: "Reschedule", onPress: () => Alert.alert("Reschedule flow coming soon") },
       {
@@ -74,25 +100,24 @@ export default function AssignmentDetailsScreen() {
       <Screen style={{ paddingBottom: 140 }}>
         <View>
           <Badge variant={STATUS_BADGE[assignment.status] ?? "new"}>{assignment.status}</Badge>
-          <Text style={styles.id}>{assignment.id}</Text>
+          <Text style={styles.id}>{assignment.assignmentNumber}</Text>
           <Text style={styles.type}>{assignment.type}</Text>
           <Text style={styles.assignedOn}>Assigned On {assignment.assignedOn}</Text>
         </View>
 
         <Card>
           <Text style={styles.cardTitle}>Subscription Information</Text>
-          <InfoRow label="Subscription ID" value={assignment.subscriptionId} />
+          <InfoRow label="Subscription No" value={assignment.subscriptionNumber} />
           <InfoRow label="Package" value={assignment.packageName} />
           <InfoRow label="Monthly Fee" value={`৳ ${assignment.monthlyFee}`} />
           <InfoRow label="Billing Start Date" value={assignment.billingStartDate} />
-          <InfoRow label="No. of Vehicles" value={String(assignment.vehicleCount)} />
+          <InfoRow label="Vehicle Number" value={assignment.vehicleNumber} />
         </Card>
 
         <Card>
           <Text style={styles.cardTitle}>Customer Information</Text>
           <InfoRow label="Name" value={assignment.customerName} />
           <InfoRow label="Mobile" value={assignment.customerMobile} />
-          <InfoRow label="Alternate" value={assignment.customerAlternateMobile} />
           <InfoRow label="Address" value={assignment.customerAddress} />
         </Card>
       </Screen>
@@ -101,7 +126,13 @@ export default function AssignmentDetailsScreen() {
         <Button variant="outline" onPress={callCustomer} icon={<Phone size={16} color={colors.slate700} />}>
           Call Customer
         </Button>
-        <Button onPress={() => setConfirmOpen(true)}>Accept Assignment</Button>
+        {assignment.status === "New" ? (
+          <Button onPress={() => setConfirmOpen(true)}>Accept Assignment</Button>
+        ) : (
+          <Button onPress={() => navigation.navigate("InstallationProgress", { id })}>
+            Continue
+          </Button>
+        )}
       </View>
 
       <Modal visible={confirmOpen} transparent animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
@@ -113,11 +144,13 @@ export default function AssignmentDetailsScreen() {
             <Text style={styles.dialogTitle}>Accept this Assignment?</Text>
             <Text style={styles.dialogBody}>
               You are about to accept the installation job{"\n"}
-              <Text style={styles.dialogBold}>{assignment.id}</Text>
+              <Text style={styles.dialogBold}>{assignment.assignmentNumber}</Text>
             </Text>
             <View style={{ width: "100%", gap: 8, marginTop: 18 }}>
-              <Button onPress={handleAccept}>Yes, Accept</Button>
-              <Button variant="outline" onPress={() => setConfirmOpen(false)}>
+              <Button onPress={handleAccept} disabled={isAccepting}>
+                {isAccepting ? "Accepting..." : "Yes, Accept"}
+              </Button>
+              <Button variant="outline" onPress={() => setConfirmOpen(false)} disabled={isAccepting}>
                 Cancel
               </Button>
             </View>

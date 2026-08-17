@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Alert } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -9,44 +9,57 @@ import { Card } from "@/components/Card";
 import { Input } from "@/components/Input";
 import { SelectField } from "@/components/SelectField";
 import { Button } from "@/components/Button";
-import {
-  getAssignmentById,
-  vehicleTypes,
-  brandModels,
-  vehicleColors,
-} from "@/lib/mockData";
+import { api } from "@/lib/api";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
-const YEARS = Array.from({ length: 15 }, (_, i) => String(2026 - i));
+interface VehicleType {
+  id: number;
+  name: string;
+}
 
 export default function StartInstallationScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, "StartInstallation">>();
   const insets = useSafeAreaInsets();
-  const assignment = getAssignmentById(route.params.id);
+  const { id } = route.params;
+  const [isSaving, setIsSaving] = useState(false);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
+
+  useEffect(() => {
+    api
+      .get("/api/technician/vehicle-types")
+      .then((res) => setVehicleTypes(res.data?.vehicle_types || []))
+      .catch(() => setVehicleTypes([]));
+  }, []);
 
   const [form, setForm] = useState({
     vehicleNumber: "",
     chassisNumber: "",
     engineNumber: "",
     vehicleType: "",
-    brandModel: "",
-    year: "",
-    color: "",
   });
 
-  if (!assignment) {
-    navigation.goBack();
-    return null;
-  }
-
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!form.vehicleNumber.trim() || !form.chassisNumber.trim() || !form.vehicleType) {
       Alert.alert("Please fill in all required fields");
       return;
     }
-    navigation.navigate("InstallationForm", { id: assignment.id });
+    const selectedType = vehicleTypes.find((v) => v.name === form.vehicleType);
+    setIsSaving(true);
+    try {
+      await api.post(`/api/technician/assignments/${id}/start`, {
+        registration_no: form.vehicleNumber.trim(),
+        chassis_no: form.chassisNumber.trim(),
+        engine_no: form.engineNumber.trim() || null,
+        vehicle_type_id: selectedType?.id,
+      });
+      navigation.navigate("InstallationForm", { id });
+    } catch (err: any) {
+      Alert.alert(err?.response?.data?.message || "Failed to start installation");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -85,36 +98,17 @@ export default function StartInstallationScreen() {
             label="Vehicle Type"
             required
             placeholder="Select vehicle type"
-            options={vehicleTypes}
+            options={vehicleTypes.map((v) => v.name)}
             value={form.vehicleType}
             onChange={(v) => setForm((f) => ({ ...f, vehicleType: v }))}
-          />
-          <SelectField
-            label="Brand / Model"
-            placeholder="Select brand / model"
-            options={brandModels}
-            value={form.brandModel}
-            onChange={(v) => setForm((f) => ({ ...f, brandModel: v }))}
-          />
-          <SelectField
-            label="Manufacturing Year"
-            placeholder="Select year"
-            options={YEARS}
-            value={form.year}
-            onChange={(v) => setForm((f) => ({ ...f, year: v }))}
-          />
-          <SelectField
-            label="Vehicle Color"
-            placeholder="Select color"
-            options={vehicleColors}
-            value={form.color}
-            onChange={(v) => setForm((f) => ({ ...f, color: v }))}
           />
         </Card>
       </Screen>
 
       <View style={[styles.stickyCta, { paddingBottom: insets.bottom + 10 }]}>
-        <Button onPress={handleNext}>Next</Button>
+        <Button onPress={handleNext} disabled={isSaving}>
+          {isSaving ? "Saving..." : "Next"}
+        </Button>
       </View>
     </View>
   );

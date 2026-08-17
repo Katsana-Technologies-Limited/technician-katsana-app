@@ -17,24 +17,46 @@ import { StatCard } from "@/components/StatCard";
 import { AssignmentCard } from "@/components/AssignmentCard";
 import { useAuth } from "@/context/AuthContext";
 import { useSidebar } from "@/context/SidebarContext";
-import { dashboardStats, assignments } from "@/lib/mockData";
+import { useAssignmentsList } from "@/hooks/useAssignments";
+import { toDisplayAssignment } from "@/lib/assignments";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
 const STAT_CARDS = [
-  { key: "newAssignments", label: "New Assignments", icon: ClipboardPlus, tone: colors.sky100 },
-  { key: "accepted", label: "Accepted", icon: CheckCircle2, tone: colors.emerald100 },
-  { key: "inProgress", label: "In Progress", icon: Loader2, tone: colors.amber100 },
-  { key: "completedToday", label: "Completed Today", icon: CheckCircle2, tone: colors.emerald100 },
-  { key: "rescheduled", label: "Rescheduled", icon: RotateCcw, tone: colors.violet100 },
-  { key: "cancelled", label: "Cancelled", icon: XCircle, tone: colors.rose100 },
+  { key: "New", label: "New Assignments", icon: ClipboardPlus, tone: colors.sky100 },
+  { key: "Accepted", label: "Accepted", icon: CheckCircle2, tone: colors.emerald100 },
+  { key: "In Progress", label: "In Progress", icon: Loader2, tone: colors.amber100 },
+  { key: "Completed", label: "Completed", icon: CheckCircle2, tone: colors.emerald100 },
+  { key: "Rescheduled", label: "Rescheduled", icon: RotateCcw, tone: colors.violet100 },
+  { key: "Cancelled", label: "Cancelled", icon: XCircle, tone: colors.rose100 },
 ] as const;
 
 export default function DashboardScreen() {
   const { technician } = useAuth();
   const { open } = useSidebar();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const todaysSchedule = assignments.filter((a) => a.scheduleLabel.startsWith("Today"));
+  const { assignments: rawAssignments, isLoading } = useAssignmentsList();
+  const assignments = rawAssignments.map(toDisplayAssignment);
+
+  const stats = STAT_CARDS.reduce(
+    (acc, { key }) => {
+      acc[key] = assignments.filter((a) => a.status === key).length;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
+  const today = new Date();
+  const todaysSchedule = rawAssignments
+    .filter((a) => {
+      const d = new Date(a.assigned_on);
+      return (
+        d.getFullYear() === today.getFullYear() &&
+        d.getMonth() === today.getMonth() &&
+        d.getDate() === today.getDate()
+      );
+    })
+    .map(toDisplayAssignment);
 
   return (
     <View style={{ flex: 1 }}>
@@ -62,7 +84,7 @@ export default function DashboardScreen() {
             <StatCard
               key={key}
               icon={<Icon size={17} color={colors.slate700} />}
-              value={dashboardStats[key]}
+              value={isLoading ? 0 : stats[key] || 0}
               label={label}
               tone={tone}
             />
@@ -78,6 +100,10 @@ export default function DashboardScreen() {
             View All
           </Text>
         </View>
+
+        {!isLoading && todaysSchedule.length === 0 && (
+          <Text style={styles.empty}>Nothing scheduled for today.</Text>
+        )}
 
         {todaysSchedule.map((a) => (
           <AssignmentCard
@@ -108,4 +134,5 @@ const styles = StyleSheet.create({
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   link: { fontSize: 12, fontWeight: "600", color: colors.brand700 },
+  empty: { textAlign: "center", color: colors.slate400, paddingVertical: 24, fontSize: 13 },
 });

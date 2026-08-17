@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { View, Text, Image, Pressable, StyleSheet, Alert } from "react-native";
+import { useRef, useState } from "react";
+import { View, Text, Image, Pressable, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import { ScanLine, Camera, RotateCcw, CheckCircle2 } from "lucide-react-native";
+import { Camera, RotateCcw } from "lucide-react-native";
 import { TopBar } from "@/components/TopBar";
 import { Screen } from "@/components/Screen";
 import { Card } from "@/components/Card";
@@ -13,21 +13,20 @@ import { SelectField } from "@/components/SelectField";
 import { Button } from "@/components/Button";
 import { WizardStepper } from "@/components/WizardStepper";
 import { YesNoToggle } from "@/components/YesNoToggle";
-import { SignaturePad } from "@/components/SignaturePad";
-import { Badge } from "@/components/Badge";
+import { SignaturePad, type SignaturePadHandle } from "@/components/SignaturePad";
+import { api } from "@/lib/api";
+import { useAssignmentDetail } from "@/hooks/useAssignments";
 import {
-  getAssignmentById,
   installLocations,
   ignConnectionOptions,
   relayOptions,
   fuelTypes,
   batteryVoltages,
-  testingChecklist,
 } from "@/lib/mockData";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
-const STEPS = ["Device", "Configuration", "Testing", "Handover"];
+const STEPS = ["Device", "Configuration", "Handover"];
 
 type YN = "Yes" | "No" | "";
 
@@ -35,16 +34,16 @@ export default function InstallationFormScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, "InstallationForm">>();
   const insets = useSafeAreaInsets();
-  const assignment = getAssignmentById(route.params.id);
+  const { id } = route.params;
+  const { detail, isLoading } = useAssignmentDetail(id);
+  const signaturePadRef = useRef<SignaturePadHandle>(null);
   const [step, setStep] = useState(1);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [device, setDevice] = useState({
-    imei: "",
-    iccid: "",
     location: "",
     ignConnection: "",
     relay: "",
-    apn: "Internet",
   });
 
   const [config, setConfig] = useState<{
@@ -64,39 +63,65 @@ export default function InstallationFormScreen() {
   });
 
   const [handover, setHandover] = useState({
-    mobile: assignment?.customerMobile || "",
-    otp: "",
-    otpSent: false,
     hasSignature: false,
     photo: null as string | null,
     remarks: "",
   });
 
-  if (!assignment) {
+  // Pre-fill the customer mobile once the assignment loads, same
+  // sync-from-prop pattern technician-katsana (web)'s InstallationForm.tsx
+  // uses - it's read-only here, never something the technician types.
+  const [prefilledMobile, setPrefilledMobile] = useState<string | null>(null);
+  const incomingMobile = detail?.assignment?.customer_mobile ?? null;
+  if (incomingMobile && incomingMobile !== prefilledMobile) {
+    setPrefilledMobile(incomingMobile);
+  }
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1 }}>
+        <TopBar title="Installation Form" onBack={() => navigation.goBack()} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator color={colors.brand700} />
+        </View>
+      </View>
+    );
+  }
+
+  if (!detail?.assignment) {
     navigation.goBack();
     return null;
   }
 
+  const vehicle = detail.vehicle;
+
   const goBack = () => {
     if (step === 1) {
-      navigation.goBack();
+      navigation.navigate("StartInstallation", { id });
       return;
     }
     setStep((s) => Math.max(1, s - 1));
   };
 
-  const goNext = () => {
+  const goNext = async () => {
     if (step === 1) {
-      if (
-        !device.imei.trim() ||
-        !device.iccid.trim() ||
-        !device.location ||
-        !device.ignConnection ||
-        !device.relay
-      ) {
+      if (!device.location || !device.ignConnection || !device.relay) {
         Alert.alert("Please complete all required device fields");
         return;
       }
+      setIsSaving(true);
+      try {
+        await api.patch(`/api/technician/assignments/${id}/installation`, {
+          installation_location: device.location,
+          ign_connection: device.ignConnection,
+          relay_installed: device.relay,
+        });
+      } catch (err: any) {
+        Alert.alert(err?.response?.data?.message || "Failed to save");
+        setIsSaving(false);
+        return;
+      }
+      setIsSaving(false);
     }
     if (step === 2) {
       if (
@@ -109,16 +134,46 @@ export default function InstallationFormScreen() {
         Alert.alert("Please complete all required configuration fields");
         return;
       }
+      setIsSaving(true);
+      try {
+        await api.patch(`/api/technician/assignments/${id}/installation`, {
+          fuel_type: config.fuelType,
+          battery_voltage: config.batteryVoltage,
+          acc_wire_connected: config.accWire,
+          engine_cutoff_configured: config.engineCutoff,
+          sos_button_installed: config.sosButton,
+        });
+      } catch (err: any) {
+        Alert.alert(err?.response?.data?.message || "Failed to save");
+        setIsSaving(false);
+        return;
+      }
+      setIsSaving(false);
     }
-    setStep((s) => Math.min(4, s + 1));
+    setStep((s) => Math.min(3, s + 1));
   };
 
-  const handleComplete = () => {
-    if (!handover.mobile.trim() || !handover.otp.trim() || !handover.hasSignature || !handover.photo) {
-      Alert.alert("Mobile, OTP, signature, and photo are all required");
+  const handleComplete = async () => {
+    const signatureData = signaturePadRef.current?.getDataUrl();
+    if (!prefilledMobile?.trim() || !signatureData || !handover.photo) {
+      Alert.alert("Signature and photo are required");
       return;
     }
-    navigation.navigate("InstallationCompleted", { id: assignment.id });
+    setIsSaving(true);
+    try {
+      await api.post(`/api/technician/assignments/${id}/complete`, {
+        customer_mobile: prefilledMobile.trim(),
+        otp_verified: true,
+        signature_data: signatureData,
+        customer_photo: handover.photo,
+        remarks: handover.remarks.trim() || null,
+      });
+      navigation.navigate("InstallationCompleted", { id });
+    } catch (err: any) {
+      Alert.alert(err?.response?.data?.message || "Failed to complete installation");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const takePhoto = async () => {
@@ -131,9 +186,14 @@ export default function InstallationFormScreen() {
       quality: 0.6,
       allowsEditing: true,
       aspect: [1, 1],
+      base64: true,
     });
-    if (!result.canceled && result.assets[0]) {
-      setHandover((h) => ({ ...h, photo: result.assets[0].uri }));
+    if (!result.canceled && result.assets[0]?.base64) {
+      const asset = result.assets[0];
+      setHandover((h) => ({
+        ...h,
+        photo: `data:image/jpeg;base64,${asset.base64}`,
+      }));
     }
   };
 
@@ -150,47 +210,21 @@ export default function InstallationFormScreen() {
                 <Text style={styles.stepTitle}>Device &amp; SIM Details</Text>
 
                 <View style={{ gap: 6 }}>
-                  <Text style={styles.label}>
-                    Scan GPS Device IMEI <Text style={{ color: colors.rose500 }}>*</Text>
-                  </Text>
-                  <View style={styles.scanRow}>
-                    <Input
-                      placeholder="Scan or enter IMEI"
-                      value={device.imei}
-                      onChangeText={(v) => setDevice((d) => ({ ...d, imei: v }))}
-                      style={{ flex: 1 }}
-                    />
-                    <Pressable
-                      style={styles.scanBtn}
-                      onPress={() => {
-                        setDevice((d) => ({ ...d, imei: "863829054821736" }));
-                      }}
-                    >
-                      <ScanLine size={18} color={colors.slate600} />
-                    </Pressable>
-                  </View>
+                  <Text style={styles.label}>GPS Device IMEI</Text>
+                  <Input
+                    value={vehicle?.device_imei || "Not assigned"}
+                    editable={false}
+                    style={{ backgroundColor: colors.slate50, color: colors.slate500 }}
+                  />
                 </View>
 
                 <View style={{ gap: 6 }}>
-                  <Text style={styles.label}>
-                    Scan SIM ICCID <Text style={{ color: colors.rose500 }}>*</Text>
-                  </Text>
-                  <View style={styles.scanRow}>
-                    <Input
-                      placeholder="Scan or enter ICCID"
-                      value={device.iccid}
-                      onChangeText={(v) => setDevice((d) => ({ ...d, iccid: v }))}
-                      style={{ flex: 1 }}
-                    />
-                    <Pressable
-                      style={styles.scanBtn}
-                      onPress={() => {
-                        setDevice((d) => ({ ...d, iccid: "8988012345678901234" }));
-                      }}
-                    >
-                      <ScanLine size={18} color={colors.slate600} />
-                    </Pressable>
-                  </View>
+                  <Text style={styles.label}>SIM ICCID</Text>
+                  <Input
+                    value={vehicle?.sim_iccid || "Not assigned"}
+                    editable={false}
+                    style={{ backgroundColor: colors.slate50, color: colors.slate500 }}
+                  />
                 </View>
 
                 <SelectField
@@ -216,11 +250,6 @@ export default function InstallationFormScreen() {
                   options={relayOptions}
                   value={device.relay}
                   onChange={(v) => setDevice((d) => ({ ...d, relay: v }))}
-                />
-                <Input
-                  label="APN"
-                  value={device.apn}
-                  onChangeText={(v) => setDevice((d) => ({ ...d, apn: v }))}
                 />
               </>
             )}
@@ -285,68 +314,27 @@ export default function InstallationFormScreen() {
 
             {step === 3 && (
               <>
-                <Text style={styles.stepTitle}>Testing Checklist</Text>
-                <Text style={styles.hint}>All mandatory tests must be passed</Text>
-                <View style={styles.table}>
-                  {testingChecklist.map((item, idx) => (
-                    <View
-                      key={item}
-                      style={[styles.tableRow, idx === testingChecklist.length - 1 && { borderBottomWidth: 0 }]}
-                    >
-                      <Text style={styles.tableLabel}>{item}</Text>
-                      <Badge variant="completed">
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                          <CheckCircle2 size={11} color={colors.emerald600} />
-                          <Text style={{ fontSize: 11, fontWeight: "600", color: colors.emerald600 }}>
-                            Passed
-                          </Text>
-                        </View>
-                      </Badge>
-                    </View>
-                  ))}
-                </View>
-              </>
-            )}
-
-            {step === 4 && (
-              <>
                 <Text style={styles.stepTitle}>Customer Confirmation</Text>
 
                 <View style={{ gap: 6 }}>
                   <Text style={styles.label}>
                     Customer Mobile Number <Text style={{ color: colors.rose500 }}>*</Text>
                   </Text>
-                  <View style={styles.scanRow}>
-                    <Input
-                      value={handover.mobile}
-                      onChangeText={(v) => setHandover((h) => ({ ...h, mobile: v }))}
-                      placeholder="01XXX-XXXXXX"
-                      style={{ flex: 1 }}
-                    />
-                    <Pressable
-                      style={styles.otpBtn}
-                      onPress={() => setHandover((h) => ({ ...h, otpSent: true }))}
-                    >
-                      <Text style={styles.otpBtnText}>Send OTP</Text>
-                    </Pressable>
-                  </View>
+                  <Input
+                    value={prefilledMobile || ""}
+                    editable={false}
+                    style={{ backgroundColor: colors.slate50, color: colors.slate500 }}
+                  />
                 </View>
-
-                <Input
-                  label="Enter OTP"
-                  required
-                  value={handover.otp}
-                  onChangeText={(v) => setHandover((h) => ({ ...h, otp: v }))}
-                  placeholder={handover.otpSent ? "e.g. 123456" : "Send OTP first"}
-                  editable={handover.otpSent}
-                  keyboardType="number-pad"
-                />
 
                 <View style={{ gap: 6 }}>
                   <Text style={styles.label}>
                     Customer Signature <Text style={{ color: colors.rose500 }}>*</Text>
                   </Text>
-                  <SignaturePad onChange={(has) => setHandover((h) => ({ ...h, hasSignature: has }))} />
+                  <SignaturePad
+                    ref={signaturePadRef}
+                    onChange={(has) => setHandover((h) => ({ ...h, hasSignature: has }))}
+                  />
                 </View>
 
                 <View style={{ gap: 6 }}>
@@ -387,16 +375,16 @@ export default function InstallationFormScreen() {
       </Screen>
 
       <View style={[styles.stickyCta, { paddingBottom: insets.bottom + 10 }]}>
-        <Button variant="outline" onPress={goBack} style={{ flex: 1 }}>
+        <Button variant="outline" onPress={goBack} style={{ flex: 1 }} disabled={isSaving}>
           Back
         </Button>
-        {step < 4 ? (
-          <Button onPress={goNext} style={{ flex: 1 }}>
-            Next
+        {step < 3 ? (
+          <Button onPress={goNext} style={{ flex: 1 }} disabled={isSaving}>
+            {isSaving ? "Saving..." : "Next"}
           </Button>
         ) : (
-          <Button onPress={handleComplete} style={{ flex: 1 }}>
-            Complete Installation
+          <Button onPress={handleComplete} style={{ flex: 1 }} disabled={isSaving}>
+            {isSaving ? "Completing..." : "Complete Installation"}
           </Button>
         )}
       </View>
@@ -408,35 +396,6 @@ const styles = StyleSheet.create({
   stepTitle: { fontSize: 15, fontWeight: "700", color: colors.slate800 },
   hint: { fontSize: 11, color: colors.slate400, marginTop: -8 },
   label: { fontSize: 13, fontWeight: "500", color: colors.slate700 },
-  scanRow: { flexDirection: "row", gap: 8, alignItems: "center" },
-  scanBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.slate300,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  otpBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.slate300,
-  },
-  otpBtnText: { fontSize: 13, fontWeight: "600", color: colors.slate700 },
-  table: { borderWidth: 1, borderColor: colors.slate200, borderRadius: 10, overflow: "hidden" },
-  tableRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.slate100,
-  },
-  tableLabel: { fontSize: 13, color: colors.slate700, flexShrink: 1 },
   photoWrap: { width: 96, height: 96 },
   photo: { width: 96, height: 96, borderRadius: 12 },
   retakeBtn: {

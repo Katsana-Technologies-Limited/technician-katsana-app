@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Alert } from "react-native";
+import { View, Text, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Check, AlertTriangle } from "lucide-react-native";
@@ -8,7 +8,8 @@ import { Screen } from "@/components/Screen";
 import { Card } from "@/components/Card";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
-import { getAssignmentById, installationProgressSteps } from "@/lib/mockData";
+import { useAssignmentDetail } from "@/hooks/useAssignments";
+import { toDisplayAssignment, formatDateTime } from "@/lib/assignments";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
@@ -16,56 +17,82 @@ export default function InstallationProgressScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, "InstallationProgress">>();
   const insets = useSafeAreaInsets();
-  const assignment = getAssignmentById(route.params.id);
+  const { id } = route.params;
+  const { detail, isLoading } = useAssignmentDetail(id);
 
-  if (!assignment) {
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1 }}>
+        <TopBar title="Installation Progress" onBack={() => navigation.goBack()} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator color={colors.brand700} />
+        </View>
+      </View>
+    );
+  }
+
+  if (!detail?.assignment) {
     navigation.goBack();
     return null;
   }
+
+  const raw = detail.assignment;
+  const assignment = toDisplayAssignment(raw);
+
+  // Real status timestamps, not a fabricated granular timeline - matches
+  // technician-katsana (web)'s InstallationProgress.tsx exactly.
+  const steps = [
+    { label: "Assigned", time: raw.assigned_on, done: true },
+    { label: "Technician Accepted", time: raw.accepted_at, done: Boolean(raw.accepted_at) },
+    { label: "Installation Started", time: raw.started_at, done: Boolean(raw.started_at) },
+    { label: "Installation Completed", time: raw.completed_at, done: Boolean(raw.completed_at) },
+  ];
+  const currentIdx = steps.findIndex((s) => !s.done);
 
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Installation Progress" onBack={() => navigation.goBack()} />
       <Screen style={{ paddingBottom: 120 }}>
         <View style={styles.headerRow}>
-          <Text style={styles.id}>{assignment.id}</Text>
-          <Badge variant="inProgress">In Progress</Badge>
+          <Text style={styles.id}>{assignment.assignmentNumber}</Text>
+          <Badge variant="inProgress">{assignment.status}</Badge>
         </View>
         <Text style={styles.vehicle}>{assignment.vehicleNumber}</Text>
 
         <Card>
-          {installationProgressSteps.map((step, idx) => {
-            const isLast = idx === installationProgressSteps.length - 1;
+          {steps.map((step, idx) => {
+            const isLast = idx === steps.length - 1;
+            const state = step.done ? "done" : idx === currentIdx ? "current" : "pending";
             return (
               <View key={step.label} style={styles.stepRow}>
                 <View style={styles.stepIconCol}>
                   <View
                     style={[
                       styles.dot,
-                      step.state === "done" && styles.dotDone,
-                      step.state === "current" && styles.dotCurrent,
+                      state === "done" && styles.dotDone,
+                      state === "current" && styles.dotCurrent,
                     ]}
                   >
-                    {step.state === "done" ? (
+                    {state === "done" ? (
                       <Check size={14} color={colors.white} />
                     ) : (
                       <View style={styles.dotInner} />
                     )}
                   </View>
                   {!isLast && (
-                    <View style={[styles.line, step.state === "done" && styles.lineDone]} />
+                    <View style={[styles.line, state === "done" && styles.lineDone]} />
                   )}
                 </View>
                 <View style={styles.stepBody}>
                   <Text
                     style={[
                       styles.stepLabel,
-                      step.state === "pending" && styles.stepLabelPending,
+                      state === "pending" && styles.stepLabelPending,
                     ]}
                   >
                     {step.label}
                   </Text>
-                  {step.time && <Text style={styles.stepTime}>{step.time}</Text>}
+                  {step.time && <Text style={styles.stepTime}>{formatDateTime(step.time)}</Text>}
                 </View>
               </View>
             );
@@ -74,7 +101,7 @@ export default function InstallationProgressScreen() {
       </Screen>
 
       <View style={[styles.stickyCta, { paddingBottom: insets.bottom + 10 }]}>
-        <Button onPress={() => navigation.navigate("StartInstallation", { id: assignment.id })}>
+        <Button onPress={() => navigation.navigate("StartInstallation", { id })}>
           Start Installation
         </Button>
         <Button

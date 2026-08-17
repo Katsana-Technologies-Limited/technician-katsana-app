@@ -1,16 +1,39 @@
-import { useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, PanResponder } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { RotateCcw } from "lucide-react-native";
 import { colors } from "@/theme/colors";
 
+export interface SignaturePadHandle {
+  // An SVG data URL built from the drawn strokes - avoids pulling in
+  // react-native-view-shot (a native module) just to rasterize this one
+  // field into a PNG. The backend just stores whatever string it's given
+  // (installation_records.signature_data is a plain LONGTEXT), so an
+  // image/svg+xml data URL is just as valid as technician-katsana (web)'s
+  // PNG one for that purpose.
+  getDataUrl: () => string | null;
+}
+
 // Self-contained finger-drawn signature (PanResponder + react-native-svg) -
 // avoids pulling in a WebView-backed signature library just for this one
 // field.
-export function SignaturePad({ onChange }: { onChange: (hasSignature: boolean) => void }) {
+export const SignaturePad = forwardRef<
+  SignaturePadHandle,
+  { onChange: (hasSignature: boolean) => void }
+>(function SignaturePad({ onChange }, ref) {
   const [paths, setPaths] = useState<string[]>([]);
   const [livePath, setLivePath] = useState("");
   const pathRef = useRef("");
+
+  useImperativeHandle(ref, () => ({
+    getDataUrl: () => {
+      if (paths.length === 0) return null;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="160" viewBox="0 0 400 160">${paths
+        .map((d) => `<path d="${d}" stroke="#1e293b" stroke-width="2.5" fill="none" />`)
+        .join("")}</svg>`;
+      return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    },
+  }));
 
   const panResponder = useRef(
     PanResponder.create({
@@ -65,7 +88,7 @@ export function SignaturePad({ onChange }: { onChange: (hasSignature: boolean) =
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   pad: {
