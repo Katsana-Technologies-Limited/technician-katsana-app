@@ -46,6 +46,9 @@ export function Button({
               variant === "outline" && styles.textOutline,
               variant === "danger" && styles.textDanger,
             ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
           >
             {children}
           </Text>
@@ -88,6 +91,7 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 15,
     fontWeight: "600",
+    flexShrink: 1,
   },
   textOutline: {
     color: colors.slate700,
