@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { useNavigation, useRoute, type RouteProp, CommonActions } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Check } from "lucide-react-native";
@@ -7,6 +7,7 @@ import { Screen } from "@/components/Screen";
 import { Card } from "@/components/Card";
 import { InfoRow } from "@/components/InfoRow";
 import { Button } from "@/components/Button";
+import { Skeleton } from "@/components/Skeleton";
 import { useAssignmentDetail } from "@/hooks/useAssignments";
 import { toDisplayAssignment, formatDateTime } from "@/lib/assignments";
 import { colors } from "@/theme/colors";
@@ -30,9 +31,19 @@ export default function InstallationCompletedScreen() {
     return (
       <View style={{ flex: 1 }}>
         <TopBar title="Installation Completed" onBack={backToDashboard} showBell={false} />
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator color={colors.brand700} />
-        </View>
+        <Screen style={{ alignItems: "center", paddingTop: 32 }}>
+          <Skeleton style={{ width: 84, height: 84, borderRadius: 42 }} />
+          <Skeleton style={{ width: 200, height: 16, marginTop: 20 }} />
+          <Skeleton style={{ width: 140, height: 16, marginTop: 8, marginBottom: 12 }} />
+          <Card style={{ width: "100%", gap: 10 }}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <View key={i} style={styles.skeletonRow}>
+                <Skeleton style={{ width: 100, height: 12 }} />
+                <Skeleton style={{ width: 120, height: 12 }} />
+              </View>
+            ))}
+          </Card>
+        </Screen>
       </View>
     );
   }
@@ -76,6 +87,7 @@ export default function InstallationCompletedScreen() {
 }
 
 const styles = StyleSheet.create({
+  skeletonRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 },
   iconWrap: {
     width: 84,
     height: 84,

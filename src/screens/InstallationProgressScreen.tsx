@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Alert } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Check, AlertTriangle } from "lucide-react-native";
@@ -8,10 +8,37 @@ import { Screen } from "@/components/Screen";
 import { Card } from "@/components/Card";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
+import { Skeleton } from "@/components/Skeleton";
 import { useAssignmentDetail } from "@/hooks/useAssignments";
 import { toDisplayAssignment, formatDateTime } from "@/lib/assignments";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
+
+function ProgressSkeleton({ onBack }: { onBack: () => void }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <TopBar title="Installation Progress" onBack={onBack} />
+      <Screen>
+        <View style={styles.headerRow}>
+          <Skeleton style={{ width: 140, height: 20 }} />
+          <Skeleton style={{ width: 70, height: 20, borderRadius: 999 }} />
+        </View>
+        <Skeleton style={{ width: 120, height: 13 }} />
+        <Card>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <View key={i} style={styles.stepRow}>
+              <Skeleton style={{ width: 30, height: 30, borderRadius: 15 }} />
+              <View style={{ flex: 1, paddingTop: 4, gap: 6 }}>
+                <Skeleton style={{ width: 150, height: 14 }} />
+                <Skeleton style={{ width: 90, height: 11 }} />
+              </View>
+            </View>
+          ))}
+        </Card>
+      </Screen>
+    </View>
+  );
+}
 
 export default function InstallationProgressScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -21,14 +48,7 @@ export default function InstallationProgressScreen() {
   const { detail, isLoading } = useAssignmentDetail(id);
 
   if (isLoading) {
-    return (
-      <View style={{ flex: 1 }}>
-        <TopBar title="Installation Progress" onBack={() => navigation.goBack()} />
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator color={colors.brand700} />
-        </View>
-      </View>
-    );
+    return <ProgressSkeleton onBack={() => navigation.goBack()} />;
   }
 
   if (!detail?.assignment) {

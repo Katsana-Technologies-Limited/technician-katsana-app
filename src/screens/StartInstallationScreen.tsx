@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Alert } from "react-native";
+import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -65,51 +65,57 @@ export default function StartInstallationScreen() {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Start Installation" onBack={() => navigation.goBack()} />
-      <Screen style={{ paddingBottom: 100 }}>
-        <Card style={{ gap: 16 }}>
-          <View>
-            <Text style={styles.cardTitle}>Enter Vehicle Information</Text>
-            <Text style={styles.hint}>
-              All fields marked with <Text style={{ color: colors.rose500 }}>*</Text> are required
-            </Text>
-          </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={insets.top}
+      >
+        <Screen style={{ paddingBottom: 100 }}>
+          <Card style={{ gap: 16 }}>
+            <View>
+              <Text style={styles.cardTitle}>Enter Vehicle Information</Text>
+              <Text style={styles.hint}>
+                All fields marked with <Text style={{ color: colors.rose500 }}>*</Text> are required
+              </Text>
+            </View>
 
-          <Input
-            label="Vehicle Number"
-            required
-            placeholder="Example: DHAKA METRO-GA-12-3456"
-            value={form.vehicleNumber}
-            onChangeText={(v) => setForm((f) => ({ ...f, vehicleNumber: v }))}
-          />
-          <Input
-            label="Chassis Number"
-            required
-            placeholder="Enter chassis number"
-            value={form.chassisNumber}
-            onChangeText={(v) => setForm((f) => ({ ...f, chassisNumber: v }))}
-          />
-          <Input
-            label="Engine Number"
-            placeholder="Enter engine number"
-            value={form.engineNumber}
-            onChangeText={(v) => setForm((f) => ({ ...f, engineNumber: v }))}
-          />
-          <SelectField
-            label="Vehicle Type"
-            required
-            placeholder="Select vehicle type"
-            options={vehicleTypes.map((v) => v.name)}
-            value={form.vehicleType}
-            onChange={(v) => setForm((f) => ({ ...f, vehicleType: v }))}
-          />
-        </Card>
-      </Screen>
+            <Input
+              label="Vehicle Number"
+              required
+              placeholder="Example: DHAKA METRO-GA-12-3456"
+              value={form.vehicleNumber}
+              onChangeText={(v) => setForm((f) => ({ ...f, vehicleNumber: v }))}
+            />
+            <Input
+              label="Chassis Number"
+              required
+              placeholder="Enter chassis number"
+              value={form.chassisNumber}
+              onChangeText={(v) => setForm((f) => ({ ...f, chassisNumber: v }))}
+            />
+            <Input
+              label="Engine Number"
+              placeholder="Enter engine number"
+              value={form.engineNumber}
+              onChangeText={(v) => setForm((f) => ({ ...f, engineNumber: v }))}
+            />
+            <SelectField
+              label="Vehicle Type"
+              required
+              placeholder="Select vehicle type"
+              options={vehicleTypes.map((v) => v.name)}
+              value={form.vehicleType}
+              onChange={(v) => setForm((f) => ({ ...f, vehicleType: v }))}
+            />
+          </Card>
+        </Screen>
 
-      <View style={[styles.stickyCta, { paddingBottom: insets.bottom + 10 }]}>
-        <Button onPress={handleNext} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Next"}
-        </Button>
-      </View>
+        <View style={[styles.stickyCta, { paddingBottom: insets.bottom + 10 }]}>
+          <Button onPress={handleNext} disabled={isSaving}>
+            {isSaving ? "Saving..." : "Next"}
+          </Button>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

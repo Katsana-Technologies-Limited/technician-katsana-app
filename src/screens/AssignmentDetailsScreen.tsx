@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, Pressable, StyleSheet, Modal, Linking, Alert, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, StyleSheet, Modal, Linking, Alert } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RouteProp } from "@react-navigation/native";
@@ -11,6 +11,7 @@ import { Card } from "@/components/Card";
 import { Badge, type BadgeVariant } from "@/components/Badge";
 import { InfoRow } from "@/components/InfoRow";
 import { Button } from "@/components/Button";
+import { Skeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 import { useAssignmentDetail } from "@/hooks/useAssignments";
 import { toDisplayAssignment } from "@/lib/assignments";
@@ -24,6 +25,40 @@ const STATUS_BADGE: Record<string, BadgeVariant> = {
   Completed: "completed",
 };
 
+function DetailsSkeleton({ onBack }: { onBack: () => void }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <TopBar title="Assignment Details" onBack={onBack} />
+      <Screen>
+        <View>
+          <Skeleton style={{ width: 64, height: 20, borderRadius: 999 }} />
+          <Skeleton style={{ width: 160, height: 22, marginTop: 10 }} />
+          <Skeleton style={{ width: 100, height: 14, marginTop: 8 }} />
+          <Skeleton style={{ width: 140, height: 11, marginTop: 8 }} />
+        </View>
+        <Card style={{ gap: 10 }}>
+          <Skeleton style={{ width: 180, height: 15 }} />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton style={{ width: 90, height: 12 }} />
+              <Skeleton style={{ width: 110, height: 12 }} />
+            </View>
+          ))}
+        </Card>
+        <Card style={{ gap: 10 }}>
+          <Skeleton style={{ width: 160, height: 15 }} />
+          {Array.from({ length: 3 }).map((_, i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <Skeleton style={{ width: 90, height: 12 }} />
+              <Skeleton style={{ width: 110, height: 12 }} />
+            </View>
+          ))}
+        </Card>
+      </Screen>
+    </View>
+  );
+}
+
 export default function AssignmentDetailsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, "AssignmentDetails">>();
@@ -34,14 +69,7 @@ export default function AssignmentDetailsScreen() {
   const [isAccepting, setIsAccepting] = useState(false);
 
   if (isLoading) {
-    return (
-      <View style={{ flex: 1 }}>
-        <TopBar title="Assignment Details" onBack={() => navigation.goBack()} />
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator color={colors.brand700} />
-        </View>
-      </View>
-    );
+    return <DetailsSkeleton onBack={() => navigation.goBack()} />;
   }
 
   if (!detail?.assignment) {
@@ -162,6 +190,7 @@ export default function AssignmentDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  skeletonRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 },
   id: { fontSize: 21, fontWeight: "800", color: colors.slate800, marginTop: 8 },
   type: { fontSize: 14, color: colors.slate500, marginTop: 2 },
   assignedOn: { fontSize: 11, color: colors.slate400, marginTop: 4 },

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { View, Text, Image, Pressable, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,6 +14,7 @@ import { Button } from "@/components/Button";
 import { WizardStepper } from "@/components/WizardStepper";
 import { YesNoToggle } from "@/components/YesNoToggle";
 import { SignaturePad, type SignaturePadHandle } from "@/components/SignaturePad";
+import { Skeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 import { useAssignmentDetail } from "@/hooks/useAssignments";
 import {
@@ -81,9 +82,24 @@ export default function InstallationFormScreen() {
     return (
       <View style={{ flex: 1 }}>
         <TopBar title="Installation Form" onBack={() => navigation.goBack()} />
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator color={colors.brand700} />
-        </View>
+        <Screen style={{ paddingBottom: 100 }}>
+          <Card>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} style={{ flex: 1, height: 30, borderRadius: 15 }} />
+              ))}
+            </View>
+            <View style={{ marginTop: 20, gap: 14 }}>
+              <Skeleton style={{ width: 160, height: 16 }} />
+              {Array.from({ length: 4 }).map((_, i) => (
+                <View key={i} style={{ gap: 6 }}>
+                  <Skeleton style={{ width: 120, height: 12 }} />
+                  <Skeleton style={{ width: "100%", height: 44, borderRadius: 10 }} />
+                </View>
+              ))}
+            </View>
+          </Card>
+        </Screen>
       </View>
     );
   }
@@ -200,6 +216,11 @@ export default function InstallationFormScreen() {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Installation Form" onBack={goBack} />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={insets.top}
+      >
       <Screen style={{ paddingBottom: 100 }}>
         <Card>
           <WizardStepper steps={STEPS} current={step} />
@@ -388,6 +409,7 @@ export default function InstallationFormScreen() {
           </Button>
         )}
       </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
