@@ -42,6 +42,9 @@ export default function InstallationFormScreen() {
   const signaturePadRef = useRef<SignaturePadHandle>(null);
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
+  // Locks the outer Screen ScrollView while a finger is actively drawing on
+  // the signature pad - see the note in Screen.tsx.
+  const [signatureDrawing, setSignatureDrawing] = useState(false);
 
   const [device, setDevice] = useState({
     location: "",
@@ -394,7 +397,7 @@ export default function InstallationFormScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={insets.top}
       >
-      <Screen style={{ paddingBottom: 100 }}>
+      <Screen style={{ paddingBottom: 100 }} scrollEnabled={!signatureDrawing}>
         <Card>
           <WizardStepper steps={STEPS} current={step} />
 
@@ -528,6 +531,8 @@ export default function InstallationFormScreen() {
                   <SignaturePad
                     ref={signaturePadRef}
                     onChange={(has) => setHandover((h) => ({ ...h, hasSignature: has }))}
+                    onDrawStart={() => setSignatureDrawing(true)}
+                    onDrawEnd={() => setSignatureDrawing(false)}
                   />
                 </View>
 

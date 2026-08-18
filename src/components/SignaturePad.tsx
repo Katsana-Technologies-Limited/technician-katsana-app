@@ -20,8 +20,14 @@ export interface SignaturePadHandle {
 // the hand-rolled SVG-path version could not.
 export const SignaturePad = forwardRef<
   SignaturePadHandle,
-  { onChange: (hasSignature: boolean) => void }
->(function SignaturePad({ onChange }, ref) {
+  {
+    onChange: (hasSignature: boolean) => void;
+    // Fired around each stroke so the parent can lock/unlock its outer
+    // ScrollView - see the note on the `scrollEnabled` prop in Screen.tsx.
+    onDrawStart?: () => void;
+    onDrawEnd?: () => void;
+  }
+>(function SignaturePad({ onChange, onDrawStart, onDrawEnd }, ref) {
   const canvasRef = useRef<SignatureViewRef>(null);
   const dataUrlRef = useRef<string | null>(null);
   const [hasSignature, setHasSignature] = useState(false);
@@ -47,10 +53,14 @@ export const SignaturePad = forwardRef<
           backgroundColor={colors.slate50}
           penColor={colors.slate800}
           webStyle={webStyle}
+          onBegin={onDrawStart}
           // Read back the data URL after every stroke, not just before
           // submit, so `getDataUrl()` (called synchronously from
           // InstallationFormScreen's handleComplete) is always current.
-          onEnd={() => canvasRef.current?.readSignature()}
+          onEnd={() => {
+            canvasRef.current?.readSignature();
+            onDrawEnd?.();
+          }}
           onOK={(sig) => {
             dataUrlRef.current = sig;
             setHasSignature(true);

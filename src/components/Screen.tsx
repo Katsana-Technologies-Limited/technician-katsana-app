@@ -4,10 +4,16 @@ import { colors } from "@/theme/colors";
 export function Screen({
   children,
   scroll = true,
+  scrollEnabled = true,
   style,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
+  // Lets a child (e.g. SignaturePad) temporarily lock the outer scroll
+  // while a finger is actively drawing - without this, the ScrollView
+  // intercepts touch-move after the initial touch-down and only a dot
+  // ever gets drawn.
+  scrollEnabled?: boolean;
   style?: ViewStyle;
 }) {
   if (!scroll) {
@@ -18,6 +24,7 @@ export function Screen({
       style={styles.screen}
       contentContainerStyle={[styles.content, style]}
       keyboardShouldPersistTaps="handled"
+      scrollEnabled={scrollEnabled}
     >
       {children}
     </ScrollView>
