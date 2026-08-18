@@ -1,5 +1,6 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet, PanResponder } from "react-native";
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Svg, { Path } from "react-native-svg";
 import { RotateCcw } from "lucide-react-native";
 import { colors } from "@/theme/colors";
@@ -14,7 +15,7 @@ export interface SignaturePadHandle {
   getDataUrl: () => string | null;
 }
 
-// Self-contained finger-drawn signature (PanResponder + react-native-svg) -
+// Self-contained finger-drawn signature (gesture-handler + react-native-svg) -
 // avoids pulling in a WebView-backed signature library just for this one
 // field.
 export const SignaturePad = forwardRef<
@@ -24,6 +25,8 @@ export const SignaturePad = forwardRef<
   const [paths, setPaths] = useState<string[]>([]);
   const [livePath, setLivePath] = useState("");
   const pathRef = useRef("");
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   useImperativeHandle(ref, () => ({
     getDataUrl: () => {
@@ -36,51 +39,60 @@ export const SignaturePad = forwardRef<
   }));
 
   // Commits whatever's been drawn so far into `paths` - shared by a normal
-  // finger-lift (onPanResponderRelease) and the termination safety net below.
+  // finger-lift (onTouchesUp) and the cancellation safety net below.
   const commitStroke = () => {
     if (!pathRef.current) return;
     setPaths((prev) => {
       const next = [...prev, pathRef.current];
-      onChange(next.length > 0);
+      onChangeRef.current(next.length > 0);
       return next;
     });
     pathRef.current = "";
     setLivePath("");
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      // This pad lives inside a ScrollView (Screen.tsx) - claiming only at
-      // the bubble phase (onStartShouldSetPanResponder/onMoveShould...)
-      // means the ScrollView gets first look and can steal a
-      // slightly-vertical signing stroke as a scroll gesture mid-draw,
-      // which is exactly what made the signature vanish right as the
-      // finger lifted (the stroke was terminated, never released, so it
-      // was never committed to `paths` or saved). Claiming at the capture
-      // phase and refusing to give the responder back once granted fixes
-      // this outright.
-      onStartShouldSetPanResponder: () => true,
-      onStartShouldSetPanResponderCapture: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponderCapture: () => true,
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: (e) => {
-        const { locationX, locationY } = e.nativeEvent;
-        pathRef.current = `M${locationX.toFixed(1)},${locationY.toFixed(1)}`;
-        setLivePath(pathRef.current);
-      },
-      onPanResponderMove: (e) => {
-        const { locationX, locationY } = e.nativeEvent;
-        pathRef.current += ` L${locationX.toFixed(1)},${locationY.toFixed(1)}`;
-        setLivePath(pathRef.current);
-      },
-      onPanResponderRelease: commitStroke,
-      // Safety net in case something still forces termination (e.g. an
-      // incoming call, an OS-level gesture) - commit rather than silently
-      // drop whatever was drawn so far.
-      onPanResponderTerminate: commitStroke,
-    }),
-  ).current;
+  const addPoint = (x: number, y: number, isStart: boolean) => {
+    pathRef.current = isStart
+      ? `M${x.toFixed(1)},${y.toFixed(1)}`
+      : `${pathRef.current} L${x.toFixed(1)},${y.toFixed(1)}`;
+    setLivePath(pathRef.current);
+  };
+
+  // This pad lives inside a ScrollView (Screen.tsx). The previous
+  // implementation used the core PanResponder API, whose gesture
+  // arbitration runs as a JS-thread negotiation with the ScrollView on
+  // every touch - under load (e.g. mid-stroke) that negotiation could lose
+  // the race and the ScrollView would force-terminate the stroke right as
+  // the finger lifted, before it was ever committed to `paths`, so the
+  // signature visually vanished. react-native-gesture-handler resolves
+  // gesture ownership natively (off the JS thread) instead, which is the
+  // reliable fix for a drawing surface nested in scrollable content -
+  // onTouchesDown/Move/Up drive the stroke directly, and onTouchesCancelled
+  // still commits so nothing drawn is ever silently dropped.
+  // Memoized so the gesture (and its underlying native handler) is created
+  // once, not re-created on every point added mid-stroke - addPoint/
+  // commitStroke only close over refs and stable setState functions, so
+  // reusing the render-1 instances forever is safe and avoids any chance of
+  // gesture-handler tearing down/reattaching the handler mid-draw.
+  const drawGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .runOnJS(true)
+        .minDistance(0)
+        .shouldCancelWhenOutside(false)
+        .onTouchesDown((e) => {
+          const t = e.allTouches[0];
+          if (t) addPoint(t.x, t.y, true);
+        })
+        .onTouchesMove((e) => {
+          const t = e.allTouches[0];
+          if (t) addPoint(t.x, t.y, false);
+        })
+        .onTouchesUp(commitStroke)
+        .onTouchesCancelled(commitStroke),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   const clear = () => {
     setPaths([]);
@@ -90,17 +102,19 @@ export const SignaturePad = forwardRef<
 
   return (
     <View>
-      <View style={styles.pad} {...panResponder.panHandlers}>
-        {paths.length === 0 && !livePath && <Text style={styles.hint}>Sign here</Text>}
-        <Svg style={StyleSheet.absoluteFill}>
-          {[...paths, livePath].map(
-            (d, i) =>
-              d.length > 0 && (
-                <Path key={i} d={d} stroke={colors.slate800} strokeWidth={2.5} fill="none" />
-              ),
-          )}
-        </Svg>
-      </View>
+      <GestureDetector gesture={drawGesture}>
+        <View style={styles.pad}>
+          {paths.length === 0 && !livePath && <Text style={styles.hint}>Sign here</Text>}
+          <Svg style={StyleSheet.absoluteFill}>
+            {[...paths, livePath].map(
+              (d, i) =>
+                d.length > 0 && (
+                  <Path key={i} d={d} stroke={colors.slate800} strokeWidth={2.5} fill="none" />
+                ),
+            )}
+          </Svg>
+        </View>
+      </GestureDetector>
       {paths.length > 0 && (
         <Pressable onPress={clear} style={styles.clearBtn}>
           <RotateCcw size={13} color={colors.slate500} />

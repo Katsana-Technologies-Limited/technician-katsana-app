@@ -4,6 +4,8 @@ import { useNavigation, useRoute, type RouteProp } from "@react-navigation/nativ
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import { File } from "expo-file-system";
 import { Camera, RotateCcw } from "lucide-react-native";
 import { TopBar } from "@/components/TopBar";
 import { Screen } from "@/components/Screen";
@@ -313,18 +315,7 @@ export default function InstallationFormScreen() {
     }
   };
 
-  const takePhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Camera permission is required to take the handover photo");
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.6,
-      allowsEditing: true,
-      aspect: [1, 1],
-      base64: true,
-    });
+  const applyPhotoResult = (result: ImagePicker.ImagePickerResult) => {
     if (!result.canceled && result.assets[0]?.base64) {
       const asset = result.assets[0];
       setHandover((h) => ({
@@ -332,6 +323,67 @@ export default function InstallationFormScreen() {
         photo: `data:image/jpeg;base64,${asset.base64}`,
       }));
     }
+  };
+
+  const takePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Camera permission is required to take the handover photo");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.6,
+      allowsEditing: true,
+      aspect: [1, 1],
+      base64: true,
+    });
+    applyPhotoResult(result);
+  };
+
+  const pickPhotoFromLibrary = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Photo library permission is required to select the handover photo");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.6,
+      allowsEditing: true,
+      aspect: [1, 1],
+      base64: true,
+    });
+    applyPhotoResult(result);
+  };
+
+  // File manager (Files/Downloads/cloud drives) - distinct from the Photos/
+  // Gallery library above. DocumentPicker only returns a file:// uri on
+  // native (its `base64` option is web-only), so the file is read and
+  // base64-encoded separately via expo-file-system.
+  const pickPhotoFromFiles = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: "image/*",
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    try {
+      const base64 = await new File(asset.uri).base64();
+      const mime = asset.mimeType || "image/jpeg";
+      setHandover((h) => ({ ...h, photo: `data:${mime};base64,${base64}` }));
+    } catch {
+      Alert.alert("Couldn't read the selected file. Please try a different image.");
+    }
+  };
+
+  const choosePhotoSource = () => {
+    Alert.alert("Add Photo", undefined, [
+      { text: "Take Photo", onPress: takePhoto },
+      { text: "Choose from Library", onPress: pickPhotoFromLibrary },
+      { text: "Choose from Files", onPress: pickPhotoFromFiles },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
   return (
@@ -494,9 +546,9 @@ export default function InstallationFormScreen() {
                       </Pressable>
                     </View>
                   ) : (
-                    <Pressable style={styles.uploadBox} onPress={takePhoto}>
+                    <Pressable style={styles.uploadBox} onPress={choosePhotoSource}>
                       <Camera size={22} color={colors.slate400} />
-                      <Text style={styles.uploadText}>Take Photo</Text>
+                      <Text style={styles.uploadText}>Add Photo</Text>
                     </Pressable>
                   )}
                 </View>

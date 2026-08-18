@@ -32,7 +32,8 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Katsana Technician uses the camera to capture the customer handover photo during installation."
+          "cameraPermission": "Katsana Technician uses the camera to capture the customer handover photo during installation.",
+          "photosPermission": "Katsana Technician uses your photo library to select the customer handover photo during installation."
         }
       ]
     ],
