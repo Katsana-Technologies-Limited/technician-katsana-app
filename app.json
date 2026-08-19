@@ -15,7 +15,7 @@
       "package": "com.katsanatech.technician",
       "adaptiveIcon": {
         "backgroundColor": "#0d3b3d",
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "foregroundImage": "./assets/applogo.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
