@@ -146,8 +146,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "800", color: colors.slate800, textAlign: "center" },
   subtitle: { fontSize: 13, color: colors.slate500, textAlign: "center", marginTop: -8, marginBottom: 4 },
   inputWithIcon: { paddingLeft: 38 },
-  inputIcon: { position: "absolute", left: 12 },
-  eyeButton: { position: "absolute", right: 14, top: 38, height: 44, justifyContent: "center" },
+  inputIcon: { position: "absolute", left: 12, bottom: 13 },
+  eyeButton: { position: "absolute", right: 14, bottom: 0, height: 44, justifyContent: "center" },
   error: { color: colors.rose600, fontSize: 13 },
   rememberRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   checkbox: {

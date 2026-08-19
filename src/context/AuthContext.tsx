@@ -32,25 +32,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // On cold start, a token may already be sitting in SecureStore from a
   // previous session - verify it's still valid against the backend rather
   // than trusting it blindly (it may have expired or been revoked).
+  //
+  // The token check can resolve in a few ms (no token, or a fast local
+  // network), which would otherwise flash the splash screen for a single
+  // frame - a minimum display time keeps it visible long enough to read.
   useEffect(() => {
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 900));
+
     (async () => {
-      const token = await getToken();
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-      try {
-        const res = await api.get("/api/technician/verify-auth");
-        if (res.data?.authenticated) {
-          setTechnician(res.data.technicianInfo);
-        } else {
+      const check = (async () => {
+        const token = await getToken();
+        if (!token) return;
+        try {
+          const res = await api.get("/api/technician/verify-auth");
+          if (res.data?.authenticated) {
+            setTechnician(res.data.technicianInfo);
+          } else {
+            await clearToken();
+          }
+        } catch {
           await clearToken();
         }
-      } catch {
-        await clearToken();
-      } finally {
-        setIsLoading(false);
-      }
+      })();
+
+      await Promise.all([check, minDelay]);
+      setIsLoading(false);
     })();
   }, []);
 
