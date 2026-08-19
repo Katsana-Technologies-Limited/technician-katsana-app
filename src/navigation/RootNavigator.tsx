@@ -14,6 +14,11 @@ import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// Matches the blue used in the Katsana Fieldforce logo/artwork in
+// loading-page.png - not part of colors.ts because that palette is this
+// app's own teal brand, unrelated to the marketing asset's blue.
+const KATSANA_BLUE = "#2563eb";
+
 // Assignment/installation flow screens are pushed onto this root stack
 // (siblings of "Tabs", not nested inside a tab) so they cover the bottom
 // tab bar entirely - the native-stack equivalent of the web app's
@@ -30,7 +35,7 @@ export default function RootNavigator() {
           resizeMode="cover"
         />
         <View style={styles.loadingSpinner}>
-          <ActivityIndicator size="small" color={colors.white} />
+          <ActivityIndicator size="small" color={KATSANA_BLUE} />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </View>
@@ -68,5 +73,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  loadingText: { color: colors.white, fontSize: 13, fontWeight: "600" },
+  loadingText: { color: KATSANA_BLUE, fontSize: 13, fontWeight: "600" },
 });
