@@ -117,7 +117,12 @@ export default function LoginScreen() {
                 Login
               </Button>
 
-              <Text style={styles.version}>v1.0.0</Text>
+              <View style={styles.footer}>
+                <Text style={styles.version}>Version 1.0.0</Text>
+                <Text style={styles.copyright}>
+                  © {new Date().getFullYear()} <Text style={styles.copyrightBrand}>Katsana Technologies Ltd.</Text>
+                </Text>
+              </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -160,5 +165,8 @@ const styles = StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: colors.brand700, borderColor: colors.brand700 },
   rememberText: { fontSize: 13, color: colors.slate600 },
-  version: { textAlign: "center", fontSize: 11, color: colors.slate400, marginTop: 4 },
+  footer: { alignItems: "center", marginTop: 4, gap: 2 },
+  version: { fontSize: 11, color: colors.slate400 },
+  copyright: { fontSize: 11, color: colors.slate400 },
+  copyrightBrand: { color: colors.brand700, fontWeight: "600" },
 });
