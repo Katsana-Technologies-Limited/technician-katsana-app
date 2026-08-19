@@ -9,6 +9,7 @@ import { Card } from "@/components/Card";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 import { api, getErrorMessage } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
@@ -50,6 +51,7 @@ function PasswordField({
 
 export default function ChangePasswordScreen() {
   const navigation = useNavigation<Nav>();
+  const { refreshTechnician } = useAuth();
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -74,6 +76,7 @@ export default function ChangePasswordScreen() {
         old_password: oldPassword,
         new_password: newPassword,
       });
+      await refreshTechnician();
       Alert.alert("Password changed successfully");
       navigation.goBack();
     } catch (err: any) {

@@ -9,7 +9,7 @@ import {
   ScrollView,
   Pressable,
 } from "react-native";
-import { Eye, EyeOff, User, Lock, Fingerprint } from "lucide-react-native";
+import { Eye, EyeOff, User, Lock, Fingerprint, Check } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Input } from "@/components/Input";
@@ -98,7 +98,7 @@ export default function LoginScreen() {
 
               <Input
                 label="Mobile Number / Employee ID"
-                placeholder="Enter your ID"
+                placeholder="Enter mobile or employee id"
                 value={mobile}
                 onChangeText={setMobile}
                 autoCapitalize="none"
@@ -134,7 +134,9 @@ export default function LoginScreen() {
               {error && <Text style={styles.error}>{error}</Text>}
 
               <Pressable style={styles.rememberRow} onPress={() => setRemember((v) => !v)}>
-                <View style={[styles.checkbox, remember && styles.checkboxChecked]} />
+                <View style={[styles.checkbox, remember && styles.checkboxChecked]}>
+                  {remember && <Check size={12} color={colors.white} strokeWidth={3} />}
+                </View>
                 <Text style={styles.rememberText}>Remember me</Text>
               </Pressable>
 
@@ -206,8 +208,10 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1.5,
     borderColor: colors.slate300,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  checkboxChecked: { backgroundColor: colors.brand700, borderColor: colors.brand700 },
+  checkboxChecked: { backgroundColor: colors.emerald500, borderColor: colors.emerald600 },
   rememberText: { fontSize: 13, color: colors.slate600 },
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors.slate200 },
