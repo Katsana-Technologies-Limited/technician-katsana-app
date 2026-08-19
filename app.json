@@ -38,8 +38,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "ffa9e9cc-90ce-4402-b1a2-2e4a4e8c6e04"
+        "projectId": "50b1d4f1-f9bb-46be-95d5-4bdb66e9ba0a"
       }
-    }
+    },
+    "owner": "momin-hossain-mbstu"
   }
 }
