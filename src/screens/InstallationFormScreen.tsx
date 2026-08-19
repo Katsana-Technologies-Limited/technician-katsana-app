@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, Image, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, AppState } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, AppState, Switch } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -70,6 +70,7 @@ export default function InstallationFormScreen() {
     hasSignature: false,
     photo: null as string | null,
     remarks: "",
+    sendSms: false,
   });
 
   // Pre-fill the customer mobile once the assignment loads, same
@@ -307,6 +308,7 @@ export default function InstallationFormScreen() {
         signature_data: signatureData,
         customer_photo: handover.photo,
         remarks: handover.remarks.trim() || null,
+        send_sms: handover.sendSms,
       });
       navigation.navigate("InstallationCompleted", { id });
     } catch (err: any) {
@@ -520,6 +522,15 @@ export default function InstallationFormScreen() {
                   numberOfLines={3}
                   style={{ minHeight: 80, textAlignVertical: "top" }}
                 />
+
+                <View style={styles.smsRow}>
+                  <Text style={styles.smsLabel}>Send welcome SMS to customer</Text>
+                  <Switch
+                    value={handover.sendSms}
+                    onValueChange={(v) => setHandover((h) => ({ ...h, sendSms: v }))}
+                    trackColor={{ true: colors.brand500, false: colors.slate300 }}
+                  />
+                </View>
               </>
             )}
           </View>
@@ -547,6 +558,8 @@ export default function InstallationFormScreen() {
 
 const styles = StyleSheet.create({
   stepTitle: { fontSize: 15, fontWeight: "700", color: colors.slate800 },
+  smsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  smsLabel: { fontSize: 13, fontWeight: "500", color: colors.slate700, flex: 1 },
   hint: { fontSize: 11, color: colors.slate400, marginTop: -8 },
   label: { fontSize: 13, fontWeight: "500", color: colors.slate700 },
   photoWrap: { width: 96, height: 96 },

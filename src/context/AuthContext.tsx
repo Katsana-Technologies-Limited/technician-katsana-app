@@ -18,6 +18,7 @@ import {
 export interface TechnicianInfo {
   id: number;
   name: string;
+  photo?: string | null;
   mobile: string;
   role: string;
   assigned_area?: string | null;
@@ -49,6 +50,10 @@ interface AuthContextValue {
   // been dropped; there's nothing left to unlock, so the caller should
   // fall back to the password fields instead of offering another retry.
   loginWithBiometric: () => Promise<"success" | "cancelled" | "expired">;
+  // Re-fetches the technician's own row (photo, in practice) after a
+  // self-service update on ProfileScreen - verify-auth already returns the
+  // full technicianInfo shape, so it doubles as a refresh call.
+  refreshTechnician: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -188,6 +193,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return "expired";
   };
 
+  const refreshTechnician = async () => {
+    try {
+      const res = await api.get("/api/technician/verify-auth");
+      if (res.data?.authenticated) {
+        setTechnician(res.data.technicianInfo);
+      }
+    } catch {
+      // Best-effort - the caller (e.g. ProfileScreen after a photo upload)
+      // already has the new value to show locally either way.
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -201,6 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         disableBiometric,
         canLoginWithBiometric,
         loginWithBiometric,
+        refreshTechnician,
       }}
     >
       {children}

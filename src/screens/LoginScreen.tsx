@@ -82,6 +82,7 @@ export default function LoginScreen() {
           style={styles.flex}
         >
           <ScrollView
+            style={styles.flex}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
@@ -159,15 +160,15 @@ export default function LoginScreen() {
                   </Button>
                 </>
               )}
-
-              <View style={styles.footer}>
-                <Text style={styles.version}>Version 1.0.0</Text>
-                <Text style={styles.copyright}>
-                  © {new Date().getFullYear()} <Text style={styles.copyrightBrand}>Katsana Technologies Ltd.</Text>
-                </Text>
-              </View>
             </View>
           </ScrollView>
+
+          <View style={styles.footer}>
+            <Text style={styles.version}>Version 1.0.0</Text>
+            <Text style={styles.copyright}>
+              © {new Date().getFullYear()} <Text style={styles.copyrightBrand}>Katsana Technologies Ltd.</Text>
+            </Text>
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -179,7 +180,7 @@ const styles = StyleSheet.create({
   bgImage: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" },
   safeArea: { flex: 1 },
   flex: { flex: 1 },
-  scrollContent: { flexGrow: 1, justifyContent: "center", padding: 24, paddingBottom: 100 },
+  scrollContent: { flexGrow: 1, justifyContent: "center", padding: 24 },
   logo: { width: 300, height: 96, alignSelf: "center", marginBottom: 16 },
   card: {
     backgroundColor: "rgba(255,255,255,0.94)",
@@ -211,7 +212,7 @@ const styles = StyleSheet.create({
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors.slate200 },
   dividerText: { fontSize: 12, color: colors.slate400 },
-  footer: { alignItems: "center", marginTop: 4, gap: 2 },
+  footer: { alignItems: "center", paddingTop: 8, paddingBottom: 8, gap: 2 },
   version: { fontSize: 11, color: colors.slate400 },
   copyright: { fontSize: 11, color: colors.slate400 },
   copyrightBrand: { color: colors.brand700, fontWeight: "600" },
