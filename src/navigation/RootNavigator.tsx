@@ -1,4 +1,4 @@
-import { View, Image, StyleSheet } from "react-native";
+import { View, Image, StyleSheet, ActivityIndicator, Text } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAuth } from "@/context/AuthContext";
@@ -25,10 +25,14 @@ export default function RootNavigator() {
     return (
       <View style={styles.loading}>
         <Image
-          source={require("../../assets/logo.png")}
-          style={styles.loadingLogo}
-          resizeMode="contain"
+          source={require("../../assets/loading-page.png")}
+          style={styles.loadingBg}
+          resizeMode="cover"
         />
+        <View style={styles.loadingSpinner}>
+          <ActivityIndicator size="small" color={colors.white} />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
       </View>
     );
   }
@@ -54,6 +58,15 @@ export default function RootNavigator() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.brand900 },
-  loadingLogo: { width: 180, height: 48 },
+  loading: { flex: 1, backgroundColor: colors.white },
+  loadingBg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" },
+  loadingSpinner: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: "12%",
+    alignItems: "center",
+    gap: 8,
+  },
+  loadingText: { color: colors.white, fontSize: 13, fontWeight: "600" },
 });

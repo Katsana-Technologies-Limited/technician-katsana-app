@@ -9,8 +9,9 @@ import {
   ScrollView,
   Pressable,
 } from "react-native";
-import { Eye, EyeOff, ShieldCheck } from "lucide-react-native";
+import { Eye, EyeOff, User, Lock } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 import { useAuth } from "@/context/AuthContext";
@@ -43,110 +44,110 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" />
-      <View style={styles.brandPanel}>
-        <View style={styles.logoBadge}>
-          <Text style={styles.logoText}>KATSANA</Text>
-        </View>
-        <Text style={styles.title}>Technician App</Text>
-        <View style={styles.tip}>
-          <ShieldCheck size={18} color={colors.brand100} />
-          <Text style={styles.tipText}>
-            Manage installations, testing, and customer handovers from anywhere.
-          </Text>
-        </View>
-      </View>
+      <StatusBar style="dark" />
+      <Image
+        source={require("../../assets/login-background.png")}
+        style={styles.bgImage}
+        resizeMode="cover"
+      />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.formPanel}
-      >
-        <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
-          <Text style={styles.formTitle}>Login to continue</Text>
-          <Text style={styles.formSubtitle}>
-            Enter your credentials to access your assignments.
-          </Text>
-
-          <Input
-            placeholder="Mobile Number / Employee ID"
-            value={mobile}
-            onChangeText={setMobile}
-            autoCapitalize="none"
-            keyboardType="phone-pad"
-          />
-
-          <View>
-            <Input
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
+      <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.flex}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Image
+              source={require("../../assets/katsana-fieldforce.png")}
+              style={styles.logo}
+              resizeMode="contain"
             />
-            <Pressable
-              onPress={() => setShowPassword((v) => !v)}
-              style={styles.eyeButton}
-              hitSlop={8}
-            >
-              {showPassword ? (
-                <EyeOff size={18} color={colors.slate400} />
-              ) : (
-                <Eye size={18} color={colors.slate400} />
-              )}
-            </Pressable>
-          </View>
 
-          {error && <Text style={styles.error}>{error}</Text>}
+            <View style={styles.card}>
+              <Text style={styles.title}>Welcome Back!</Text>
+              <Text style={styles.subtitle}>Login to continue to your account</Text>
 
-          <Pressable style={styles.rememberRow} onPress={() => setRemember((v) => !v)}>
-            <View style={[styles.checkbox, remember && styles.checkboxChecked]} />
-            <Text style={styles.rememberText}>Remember me</Text>
-          </Pressable>
+              <Input
+                label="Mobile Number / Employee ID"
+                placeholder="Enter your ID"
+                value={mobile}
+                onChangeText={setMobile}
+                autoCapitalize="none"
+                keyboardType="phone-pad"
+                style={styles.inputWithIcon}
+              />
+              <User size={18} color={colors.slate400} style={styles.inputIcon} />
 
-          <Button onPress={handleSubmit} loading={submitting} style={{ marginTop: 4 }}>
-            Login
-          </Button>
+              <View>
+                <Input
+                  label="Password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  style={styles.inputWithIcon}
+                />
+                <Lock size={18} color={colors.slate400} style={styles.inputIcon} />
+                <Pressable
+                  onPress={() => setShowPassword((v) => !v)}
+                  style={styles.eyeButton}
+                  hitSlop={8}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} color={colors.slate400} />
+                  ) : (
+                    <Eye size={18} color={colors.slate400} />
+                  )}
+                </Pressable>
+              </View>
 
-          <Text style={styles.version}>v1.0.0</Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              {error && <Text style={styles.error}>{error}</Text>}
+
+              <Pressable style={styles.rememberRow} onPress={() => setRemember((v) => !v)}>
+                <View style={[styles.checkbox, remember && styles.checkboxChecked]} />
+                <Text style={styles.rememberText}>Remember me</Text>
+              </Pressable>
+
+              <Button onPress={handleSubmit} loading={submitting} style={{ marginTop: 4 }}>
+                Login
+              </Button>
+
+              <Text style={styles.version}>v1.0.0</Text>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.white },
-  brandPanel: {
-    backgroundColor: colors.brand900,
-    paddingTop: 64,
-    paddingBottom: 28,
-    paddingHorizontal: 24,
-    alignItems: "center",
+  bgImage: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" },
+  safeArea: { flex: 1 },
+  flex: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: "center", padding: 24, paddingBottom: 100 },
+  logo: { width: 300, height: 96, alignSelf: "center", marginBottom: 16 },
+  card: {
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderRadius: 20,
+    padding: 18,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
-  logoBadge: {
-    backgroundColor: colors.white,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  logoText: { color: colors.brand900, fontWeight: "800", fontSize: 15, letterSpacing: 1 },
-  title: { color: colors.white, fontSize: 20, fontWeight: "800", marginTop: 14 },
-  tip: {
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "flex-start",
-    marginTop: 18,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    padding: 12,
-    borderRadius: 12,
-    maxWidth: 320,
-  },
-  tipText: { color: colors.brand100, fontSize: 12, flex: 1, lineHeight: 17 },
-  formPanel: { flex: 1 },
-  formContent: { padding: 24, gap: 14 },
-  formTitle: { fontSize: 20, fontWeight: "700", color: colors.slate800 },
-  formSubtitle: { fontSize: 13, color: colors.slate500, marginTop: -8, marginBottom: 4 },
-  eyeButton: { position: "absolute", right: 14, top: 0, bottom: 0, justifyContent: "center" },
+  title: { fontSize: 20, fontWeight: "800", color: colors.slate800, textAlign: "center" },
+  subtitle: { fontSize: 13, color: colors.slate500, textAlign: "center", marginTop: -8, marginBottom: 4 },
+  inputWithIcon: { paddingLeft: 38 },
+  inputIcon: { position: "absolute", left: 12 },
+  eyeButton: { position: "absolute", right: 14, top: 38, height: 44, justifyContent: "center" },
   error: { color: colors.rose600, fontSize: 13 },
   rememberRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   checkbox: {
@@ -158,5 +159,5 @@ const styles = StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: colors.brand700, borderColor: colors.brand700 },
   rememberText: { fontSize: 13, color: colors.slate600 },
-  version: { textAlign: "center", fontSize: 11, color: colors.slate400, marginTop: 12 },
+  version: { textAlign: "center", fontSize: 11, color: colors.slate400, marginTop: 4 },
 });

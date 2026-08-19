@@ -5,7 +5,7 @@
     "scheme": "technician-katsana",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/applogo.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
