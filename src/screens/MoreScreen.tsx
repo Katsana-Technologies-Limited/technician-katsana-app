@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet } from "react-native";
-import { UserRound, LogOut } from "lucide-react-native";
+import { useState } from "react";
+import { View, Text, StyleSheet, Switch, Alert } from "react-native";
+import { UserRound, LogOut, Fingerprint } from "lucide-react-native";
 import { TopBar } from "@/components/TopBar";
 import { Screen } from "@/components/Screen";
 import { Card } from "@/components/Card";
@@ -9,8 +10,32 @@ import { useSidebar } from "@/context/SidebarContext";
 import { colors } from "@/theme/colors";
 
 export default function MoreScreen() {
-  const { technician, logout } = useAuth();
+  const {
+    technician,
+    logout,
+    biometricSupported,
+    biometricEnabled,
+    enableBiometric,
+    disableBiometric,
+  } = useAuth();
   const { open } = useSidebar();
+  const [togglingBiometric, setTogglingBiometric] = useState(false);
+
+  const onToggleBiometric = async (value: boolean) => {
+    setTogglingBiometric(true);
+    try {
+      if (value) {
+        const confirmed = await enableBiometric();
+        if (!confirmed) {
+          Alert.alert("Fingerprint not confirmed", "Try again to enable fingerprint login.");
+        }
+      } else {
+        await disableBiometric();
+      }
+    } finally {
+      setTogglingBiometric(false);
+    }
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -26,6 +51,26 @@ export default function MoreScreen() {
             <Text style={styles.mobile}>{technician?.mobile}</Text>
           </View>
         </Card>
+
+        {biometricSupported && (
+          <Card style={styles.biometricRow}>
+            <View style={styles.biometricLabel}>
+              <Fingerprint size={20} color={colors.brand700} />
+              <View>
+                <Text style={styles.biometricTitle}>Login with Fingerprint</Text>
+                <Text style={styles.biometricSubtitle}>
+                  Use your fingerprint instead of your password after logout
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={onToggleBiometric}
+              disabled={togglingBiometric}
+              trackColor={{ true: colors.brand500, false: colors.slate300 }}
+            />
+          </Card>
+        )}
 
         <Button
           variant="outline"
@@ -53,4 +98,8 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, fontWeight: "700", color: colors.slate800 },
   role: { fontSize: 12, color: colors.slate500, marginTop: 1 },
   mobile: { fontSize: 12, color: colors.slate400, marginTop: 1 },
+  biometricRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  biometricLabel: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
+  biometricTitle: { fontSize: 14, fontWeight: "600", color: colors.slate800 },
+  biometricSubtitle: { fontSize: 11, color: colors.slate500, marginTop: 1 },
 });

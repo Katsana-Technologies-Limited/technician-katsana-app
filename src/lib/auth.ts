@@ -20,3 +20,20 @@ export async function setToken(token: string): Promise<void> {
 export async function clearToken(): Promise<void> {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
+
+// Whether the technician has opted in to fingerprint/Face ID login. Stored
+// alongside the token rather than in AsyncStorage so both live in the same
+// secure vault, even though this flag itself isn't sensitive.
+const BIOMETRIC_ENABLED_KEY = "technician_biometric_enabled";
+
+export async function getBiometricEnabled(): Promise<boolean> {
+  return (await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY)) === "true";
+}
+
+export async function setBiometricEnabled(enabled: boolean): Promise<void> {
+  if (enabled) {
+    await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, "true");
+  } else {
+    await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
+  }
+}
