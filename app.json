@@ -34,6 +34,15 @@
           "cameraPermission": "Katsana Technician uses the camera to capture the customer handover photo during installation.",
           "photosPermission": "Katsana Technician uses your photo library to select the customer handover photo during installation."
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/applogo.png",
+          "imageWidth": 280,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
       ]
     ],
     "extra": {
