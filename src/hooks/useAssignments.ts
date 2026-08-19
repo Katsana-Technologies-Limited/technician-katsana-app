@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { api } from "@/lib/api";
+import { api, getErrorMessage } from "@/lib/api";
 import type { AssignmentDetailResponse, RawAssignment } from "@/lib/assignments";
 
 // Refetches on every screen focus (not just mount) - the RN-native
@@ -20,7 +20,7 @@ export function useAssignmentsList() {
       setAssignments(res.data?.assignments || []);
       setError(null);
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to load assignments");
+      setError(getErrorMessage(err, "Failed to load assignments"));
     } finally {
       setIsLoading(false);
     }
@@ -48,7 +48,7 @@ export function useAssignmentDetail(id: number | undefined) {
       setDetail(res.data);
       setError(null);
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to load assignment");
+      setError(getErrorMessage(err, "Failed to load assignment"));
     } finally {
       setIsLoading(false);
     }

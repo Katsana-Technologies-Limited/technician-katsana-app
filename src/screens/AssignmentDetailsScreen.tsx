@@ -12,7 +12,7 @@ import { Badge, type BadgeVariant } from "@/components/Badge";
 import { InfoRow } from "@/components/InfoRow";
 import { Button } from "@/components/Button";
 import { Skeleton } from "@/components/Skeleton";
-import { api } from "@/lib/api";
+import { api, getErrorMessage } from "@/lib/api";
 import { useAssignmentDetail } from "@/hooks/useAssignments";
 import { toDisplayAssignment } from "@/lib/assignments";
 import { colors } from "@/theme/colors";
@@ -95,7 +95,7 @@ export default function AssignmentDetailsScreen() {
       await refetch();
       navigation.navigate("InstallationProgress", { id });
     } catch (err: any) {
-      Alert.alert(err?.response?.data?.message || "Failed to accept assignment");
+      Alert.alert(getErrorMessage(err, "Failed to accept assignment"));
     } finally {
       setIsAccepting(false);
     }

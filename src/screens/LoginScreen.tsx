@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 import { useAuth } from "@/context/AuthContext";
+import { getErrorMessage } from "@/lib/api";
 import { colors } from "@/theme/colors";
 
 export default function LoginScreen() {
@@ -36,7 +37,7 @@ export default function LoginScreen() {
     try {
       await login(mobile.trim(), password, remember);
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || "Login failed");
+      setError(getErrorMessage(err, "Login failed"));
     } finally {
       setSubmitting(false);
     }

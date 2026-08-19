@@ -15,7 +15,7 @@ import { WizardStepper } from "@/components/WizardStepper";
 import { YesNoToggle } from "@/components/YesNoToggle";
 import { SignaturePad, type SignaturePadHandle } from "@/components/SignaturePad";
 import { Skeleton } from "@/components/Skeleton";
-import { api } from "@/lib/api";
+import { api, getErrorMessage } from "@/lib/api";
 import { useAssignmentDetail } from "@/hooks/useAssignments";
 import {
   installLocations,
@@ -257,7 +257,7 @@ export default function InstallationFormScreen() {
           relay_installed: device.relay,
         });
       } catch (err: any) {
-        Alert.alert(err?.response?.data?.message || "Failed to save");
+        Alert.alert(getErrorMessage(err, "Failed to save"));
         setIsSaving(false);
         return;
       }
@@ -284,7 +284,7 @@ export default function InstallationFormScreen() {
           sos_button_installed: config.sosButton,
         });
       } catch (err: any) {
-        Alert.alert(err?.response?.data?.message || "Failed to save");
+        Alert.alert(getErrorMessage(err, "Failed to save"));
         setIsSaving(false);
         return;
       }
@@ -310,7 +310,7 @@ export default function InstallationFormScreen() {
       });
       navigation.navigate("InstallationCompleted", { id });
     } catch (err: any) {
-      Alert.alert(err?.response?.data?.message || "Failed to complete installation");
+      Alert.alert(getErrorMessage(err, "Failed to complete installation"));
     } finally {
       setIsSaving(false);
     }

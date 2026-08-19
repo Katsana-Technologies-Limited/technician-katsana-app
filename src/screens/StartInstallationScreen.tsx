@@ -9,7 +9,7 @@ import { Card } from "@/components/Card";
 import { Input } from "@/components/Input";
 import { SelectField } from "@/components/SelectField";
 import { Button } from "@/components/Button";
-import { api } from "@/lib/api";
+import { api, getErrorMessage } from "@/lib/api";
 import { useAssignmentDetail } from "@/hooks/useAssignments";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
@@ -65,7 +65,7 @@ export default function StartInstallationScreen() {
       });
       navigation.navigate("InstallationForm", { id });
     } catch (err: any) {
-      Alert.alert(err?.response?.data?.message || "Failed to start installation");
+      Alert.alert(getErrorMessage(err, "Failed to start installation"));
     } finally {
       setIsSaving(false);
     }
