@@ -93,7 +93,13 @@ export function Sidebar() {
         </View>
 
         <View style={styles.footer}>
-          <Pressable style={styles.profileRow} onPress={() => goToTab("More")}>
+          <Pressable
+            style={styles.profileRow}
+            onPress={() => {
+              close();
+              navigation.navigate("Profile");
+            }}
+          >
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{initials}</Text>
             </View>

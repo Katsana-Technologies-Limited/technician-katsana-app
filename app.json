@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Katsana Technician",
+    "name": "Katsana FieldForce",
     "slug": "technician-katsana-app",
     "scheme": "technician-katsana",
     "version": "1.0.0",
@@ -20,7 +20,9 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "web": {
@@ -29,10 +31,16 @@
     "plugins": [
       "expo-secure-store",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Katsana FieldForce uses Face ID to let you log back in without typing your password."
+        }
+      ],
+      [
         "expo-image-picker",
         {
-          "cameraPermission": "Katsana Technician uses the camera to capture the customer handover photo during installation.",
-          "photosPermission": "Katsana Technician uses your photo library to select the customer handover photo during installation."
+          "cameraPermission": "Katsana FieldForce uses the camera to capture the customer handover photo during installation.",
+          "photosPermission": "Katsana FieldForce uses your photo library to select the customer handover photo during installation."
         }
       ],
       [

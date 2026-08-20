@@ -9,6 +9,8 @@ import InstallationProgressScreen from "@/screens/InstallationProgressScreen";
 import StartInstallationScreen from "@/screens/StartInstallationScreen";
 import InstallationFormScreen from "@/screens/InstallationFormScreen";
 import InstallationCompletedScreen from "@/screens/InstallationCompletedScreen";
+import ProfileScreen from "@/screens/ProfileScreen";
+import ChangePasswordScreen from "@/screens/ChangePasswordScreen";
 import { AppTabs } from "./AppTabs";
 import type { RootStackParamList } from "./types";
 
@@ -55,6 +57,8 @@ export default function RootNavigator() {
             <Stack.Screen name="StartInstallation" component={StartInstallationScreen} />
             <Stack.Screen name="InstallationForm" component={InstallationFormScreen} />
             <Stack.Screen name="InstallationCompleted" component={InstallationCompletedScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
           </>
         )}
       </Stack.Navigator>

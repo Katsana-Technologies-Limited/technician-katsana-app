@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   ScrollView,
   Pressable,
 } from "react-native";
-import { Eye, EyeOff, User, Lock } from "lucide-react-native";
+import { Eye, EyeOff, User, Lock, Fingerprint, Check } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Input } from "@/components/Input";
@@ -19,13 +19,22 @@ import { getErrorMessage } from "@/lib/api";
 import { colors } from "@/theme/colors";
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, canLoginWithBiometric, loginWithBiometric } = useAuth();
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showBiometric, setShowBiometric] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+
+  // Re-checked every time this screen mounts (rather than trusted from
+  // context state) since the answer depends on a fresh SecureStore read -
+  // it can flip to false mid-session if the saved token expired.
+  useEffect(() => {
+    canLoginWithBiometric().then(setShowBiometric);
+  }, []);
 
   const handleSubmit = async () => {
     if (!mobile.trim() || !password.trim()) {
@@ -40,6 +49,21 @@ export default function LoginScreen() {
       setError(getErrorMessage(err, "Login failed"));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    setError(null);
+    setBiometricBusy(true);
+    try {
+      const result = await loginWithBiometric();
+      if (result === "expired") {
+        setError("Your saved session has expired - please login with your password.");
+        setShowBiometric(false);
+      }
+      // "cancelled" - leave the button up so they can just try again.
+    } finally {
+      setBiometricBusy(false);
     }
   };
 
@@ -58,6 +82,7 @@ export default function LoginScreen() {
           style={styles.flex}
         >
           <ScrollView
+            style={styles.flex}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
@@ -73,7 +98,7 @@ export default function LoginScreen() {
 
               <Input
                 label="Mobile Number / Employee ID"
-                placeholder="Enter your ID"
+                placeholder="Enter mobile or employee id"
                 value={mobile}
                 onChangeText={setMobile}
                 autoCapitalize="none"
@@ -109,7 +134,9 @@ export default function LoginScreen() {
               {error && <Text style={styles.error}>{error}</Text>}
 
               <Pressable style={styles.rememberRow} onPress={() => setRemember((v) => !v)}>
-                <View style={[styles.checkbox, remember && styles.checkboxChecked]} />
+                <View style={[styles.checkbox, remember && styles.checkboxChecked]}>
+                  {remember && <Check size={12} color={colors.white} strokeWidth={3} />}
+                </View>
                 <Text style={styles.rememberText}>Remember me</Text>
               </Pressable>
 
@@ -117,14 +144,33 @@ export default function LoginScreen() {
                 Login
               </Button>
 
-              <View style={styles.footer}>
-                <Text style={styles.version}>Version 1.0.0</Text>
-                <Text style={styles.copyright}>
-                  © {new Date().getFullYear()} <Text style={styles.copyrightBrand}>Katsana Technologies Ltd.</Text>
-                </Text>
-              </View>
+              {showBiometric && (
+                <>
+                  <View style={styles.dividerRow}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>or</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+
+                  <Button
+                    variant="outline"
+                    onPress={handleBiometricLogin}
+                    loading={biometricBusy}
+                    icon={<Fingerprint size={18} color={colors.brand700} />}
+                  >
+                    Login with Fingerprint
+                  </Button>
+                </>
+              )}
             </View>
           </ScrollView>
+
+          <View style={styles.footer}>
+            <Text style={styles.version}>Version 1.0.0</Text>
+            <Text style={styles.copyright}>
+              © {new Date().getFullYear()} <Text style={styles.copyrightBrand}>Katsana Technologies Ltd.</Text>
+            </Text>
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -136,7 +182,7 @@ const styles = StyleSheet.create({
   bgImage: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" },
   safeArea: { flex: 1 },
   flex: { flex: 1 },
-  scrollContent: { flexGrow: 1, justifyContent: "center", padding: 24, paddingBottom: 100 },
+  scrollContent: { flexGrow: 1, justifyContent: "center", padding: 24 },
   logo: { width: 300, height: 96, alignSelf: "center", marginBottom: 16 },
   card: {
     backgroundColor: "rgba(255,255,255,0.94)",
@@ -162,10 +208,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1.5,
     borderColor: colors.slate300,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  checkboxChecked: { backgroundColor: colors.brand700, borderColor: colors.brand700 },
+  checkboxChecked: { backgroundColor: colors.emerald500, borderColor: colors.emerald600 },
   rememberText: { fontSize: 13, color: colors.slate600 },
-  footer: { alignItems: "center", marginTop: 4, gap: 2 },
+  dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.slate200 },
+  dividerText: { fontSize: 12, color: colors.slate400 },
+  footer: { alignItems: "center", paddingTop: 8, paddingBottom: 8, gap: 2 },
   version: { fontSize: 11, color: colors.slate400 },
   copyright: { fontSize: 11, color: colors.slate400 },
   copyrightBrand: { color: colors.brand700, fontWeight: "600" },
