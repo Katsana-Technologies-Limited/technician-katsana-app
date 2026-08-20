@@ -21,6 +21,7 @@ export interface RawAssignment {
   subscription_id: number;
   subscription_number: string;
   package_details: string;
+  discount_amount: string | number | null;
   first_billing_date: string;
   registration_no: string | null;
   customer_name: string;
@@ -144,6 +145,8 @@ export function formatScheduleLabel(value: string | null): string {
 
 export function toDisplayAssignment(raw: RawAssignment): DisplayAssignment {
   const pkg = parsePackageDetails(raw.package_details);
+  const monthlyCharge = Number(pkg.monthly_charge || pkg.annual_charge) || 0;
+  const discount = Number(raw.discount_amount) || 0;
   return {
     id: raw.id,
     assignmentNumber: raw.assignment_number,
@@ -156,7 +159,7 @@ export function toDisplayAssignment(raw: RawAssignment): DisplayAssignment {
     assignedOn: formatDateTime(raw.assigned_on),
     subscriptionNumber: raw.subscription_number,
     packageName: pkg.name || "-",
-    monthlyFee: Number(pkg.monthly_charge || pkg.annual_charge) || 0,
+    monthlyFee: monthlyCharge - discount,
     billingStartDate: formatDate(raw.first_billing_date),
     customerMobile: raw.customer_mobile,
     customerAddress: [raw.present_address || raw.permanent_address, raw.city]
