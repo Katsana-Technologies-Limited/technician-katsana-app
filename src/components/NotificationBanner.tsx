@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ClipboardList, X } from "lucide-react-native";
 import { colors } from "@/theme/colors";
+import { TOP_BAR_HEIGHT } from "@/components/TopBar";
 import { useNotifications } from "@/context/NotificationContext";
 import { navigate } from "@/navigation/navigationRef";
 
@@ -38,7 +39,7 @@ export function NotificationBanner() {
   });
 
   return (
-    <View style={[styles.wrap, { top: insets.top + 8 }]} pointerEvents="box-none">
+    <View style={[styles.wrap, { top: insets.top + TOP_BAR_HEIGHT + 8 }]} pointerEvents="box-none">
       <Pressable
         style={styles.card}
         onPress={() => {

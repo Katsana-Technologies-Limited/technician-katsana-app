@@ -13,6 +13,14 @@ interface TopBarProps {
   showBell?: boolean;
 }
 
+// The bar's own rendered height below the safe-area inset: the extra 18px
+// top padding (on top of insets.top, added inline below) + the icon row's
+// height (22px, the largest child - Menu/ChevronLeft) + the 18px bottom
+// padding. NotificationBanner/NotificationDropdown add this to insets.top so
+// they render below this bar instead of on top of it - keep in sync with
+// the `bar`/icon styles below if either changes.
+export const TOP_BAR_HEIGHT = 18 + 22 + 18;
+
 // Matches the reference mockup's light top bar: hamburger (or back chevron)
 // + title on the left, optional search/bell on the right. The bottom tab
 // bar handles primary navigation, so this stays lightweight - the "Menu"

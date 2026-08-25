@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NotificationRow } from "@/components/NotificationRow";
+import { TOP_BAR_HEIGHT } from "@/components/TopBar";
 import { colors } from "@/theme/colors";
 import { useNotifications, type AppNotification } from "@/context/NotificationContext";
 import { navigate } from "@/navigation/navigationRef";
@@ -51,7 +52,7 @@ export function NotificationDropdown() {
           dismiss, standard dropdown/popover behavior. */}
       <Pressable style={StyleSheet.absoluteFill} onPress={closeDropdown} />
 
-      <View style={[styles.wrap, { top: insets.top + 8 }]}>
+      <View style={[styles.wrap, { top: insets.top + TOP_BAR_HEIGHT + 8 }]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Notifications</Text>
           {unreadCount > 0 && (
