@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Katsana FieldForce",
-    "slug": "technician-katsana-app",
+    "slug": "mominhossainmbstu",
     "scheme": "technician-katsana",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -62,9 +62,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "50b1d4f1-f9bb-46be-95d5-4bdb66e9ba0a"
+        "projectId": "ba4eab50-6d58-4e21-b011-eb10ad7588a2"
       }
     },
-    "owner": "momin-hossain-mbstu"
+    "owner": "mominhossainmbstus-team"
   }
 }
