@@ -7,7 +7,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import * as Notifications from "expo-notifications";
 import { api, getErrorMessage } from "@/lib/api";
 import {
   configureNotificationHandler,
@@ -151,56 +150,72 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setupNotificationCategories();
     registerForPushNotificationsAsync();
 
-    // App is foregrounded - show the in-app banner instead of relying on
-    // the OS tray (which is suppressed in this state by the handler above).
-    const receivedSub = Notifications.addNotificationReceivedListener((n) => {
-      const content = n.request.content;
-      const data = (content.data || {}) as {
-        assignmentId?: number;
-        notificationId?: number;
-      };
-      showBanner({
-        title: content.title || "New notification",
-        body: content.body || null,
-        assignmentId: data.assignmentId,
-        notificationId: data.notificationId,
-      });
-      setUnreadCount((prev) => prev + 1);
-    });
+    // Only dynamically imported (never a static top-level import in this
+    // file) - this whole block already only runs past the isExpoGo() return
+    // above, but the `await import(...)` here is what actually keeps the
+    // module's own side effects from ever loading in the first place, since
+    // a static import would have evaluated (and crashed) the instant this
+    // file itself loaded, regardless of any runtime check.
+    let cancelled = false;
+    let receivedSub: { remove: () => void } | null = null;
+    let responseSub: { remove: () => void } | null = null;
 
-    // Tap on the banner/OS notification, or one of its action buttons.
-    const responseSub = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = (response.notification.request.content.data || {}) as {
+    (async () => {
+      const Notifications = await import("expo-notifications");
+      if (cancelled) return;
+
+      // App is foregrounded - show the in-app banner instead of relying on
+      // the OS tray (which is suppressed in this state by the handler above).
+      receivedSub = Notifications.addNotificationReceivedListener((n) => {
+        const content = n.request.content;
+        const data = (content.data || {}) as {
           assignmentId?: number;
           notificationId?: number;
         };
-        if (data.notificationId) markRead(data.notificationId);
+        showBanner({
+          title: content.title || "New notification",
+          body: content.body || null,
+          assignmentId: data.assignmentId,
+          notificationId: data.notificationId,
+        });
+        setUnreadCount((prev) => prev + 1);
+      });
 
-        if (response.actionIdentifier === "accept_task" && data.assignmentId) {
-          api
-            .post(`/api/technician/assignments/${data.assignmentId}/accept`)
-            .catch(() => {
-              // Navigating to the details screen either way lets the
-              // technician retry Accept there if this silently failed.
-            })
-            .finally(() => {
-              if (data.assignmentId) {
-                navigate("AssignmentDetails", { id: data.assignmentId });
-              }
-            });
-          return;
-        }
+      // Tap on the banner/OS notification, or one of its action buttons.
+      responseSub = Notifications.addNotificationResponseReceivedListener(
+        (response) => {
+          const data = (response.notification.request.content.data || {}) as {
+            assignmentId?: number;
+            notificationId?: number;
+          };
+          if (data.notificationId) markRead(data.notificationId);
 
-        if (data.assignmentId) {
-          navigate("AssignmentDetails", { id: data.assignmentId });
-        }
-      },
-    );
+          if (response.actionIdentifier === "accept_task" && data.assignmentId) {
+            api
+              .post(`/api/technician/assignments/${data.assignmentId}/accept`)
+              .catch(() => {
+                // Navigating to the details screen either way lets the
+                // technician retry Accept there if this silently failed.
+              })
+              .finally(() => {
+                if (data.assignmentId) {
+                  navigate("AssignmentDetails", { id: data.assignmentId });
+                }
+              });
+            return;
+          }
+
+          if (data.assignmentId) {
+            navigate("AssignmentDetails", { id: data.assignmentId });
+          }
+        },
+      );
+    })();
 
     return () => {
-      receivedSub.remove();
-      responseSub.remove();
+      cancelled = true;
+      receivedSub?.remove();
+      responseSub?.remove();
     };
   }, [technician, refetch, markRead, showBanner]);
 

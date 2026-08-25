@@ -1,11 +1,9 @@
 import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useNavigation } from "@react-navigation/native";
 import { NotificationRow } from "@/components/NotificationRow";
 import { colors } from "@/theme/colors";
 import { useNotifications, type AppNotification } from "@/context/NotificationContext";
-import type { RootStackParamList } from "@/navigation/types";
+import { navigate } from "@/navigation/navigationRef";
 
 // Roughly one NotificationRow's rendered height (icon + 2-line title/body +
 // timestamp, plus Card padding and the list's own gap) - three of these is
@@ -19,9 +17,13 @@ const VISIBLE_ROWS = 3;
 // NotificationContext.isDropdownOpen, instead of each screen owning its own
 // popover. Same "below the top bar, above the rest of the screen" slot the
 // banner uses.
+// Uses the imperative navigate() ref helper (not useNavigation()) - this
+// component is mounted in App.tsx as a sibling of RootNavigator, outside
+// the NavigationContainer that RootNavigator creates internally, so
+// useNavigation() has no navigation tree to find and throws
+// "Couldn't find a navigation object". Same reasoning as NotificationBanner.
 export function NotificationDropdown() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const {
     notifications,
     unreadCount,
@@ -39,7 +41,7 @@ export function NotificationDropdown() {
     if (!item.read_at) markRead(item.id);
     closeDropdown();
     if (item.data?.assignmentId) {
-      navigation.navigate("AssignmentDetails", { id: item.data.assignmentId });
+      navigate("AssignmentDetails", { id: item.data.assignmentId });
     }
   };
 
@@ -77,7 +79,7 @@ export function NotificationDropdown() {
         <Pressable
           onPress={() => {
             closeDropdown();
-            navigation.navigate("Notifications");
+            navigate("Notifications");
           }}
         >
           <Text style={styles.viewAll}>View All</Text>
