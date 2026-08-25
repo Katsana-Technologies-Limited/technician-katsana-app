@@ -51,6 +51,13 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/applogo.png",
+          "color": "#14958a"
+        }
       ]
     ],
     "extra": {

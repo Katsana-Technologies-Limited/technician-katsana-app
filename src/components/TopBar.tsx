@@ -2,6 +2,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Menu, ChevronLeft, Bell, Search } from "lucide-react-native";
 import { colors } from "@/theme/colors";
+import { useNotifications } from "@/context/NotificationContext";
 
 interface TopBarProps {
   title: string;
@@ -27,6 +28,7 @@ export function TopBar({
   showBell = !onBack,
 }: TopBarProps) {
   const insets = useSafeAreaInsets();
+  const { unreadCount, toggleDropdown } = useNotifications();
   return (
     <View style={[styles.bar, { paddingTop: insets.top + 18 }]}>
       <View style={styles.left}>
@@ -49,10 +51,16 @@ export function TopBar({
         )}
         {rightSlot}
         {showBell && (
-          <Pressable hitSlop={10}>
+          <Pressable hitSlop={10} onPress={toggleDropdown}>
             <View>
               <Bell size={20} color={colors.slate600} />
-              <View style={styles.dot} />
+              {unreadCount > 0 && (
+                <View style={styles.dot}>
+                  {unreadCount <= 9 && (
+                    <Text style={styles.dotText}>{unreadCount}</Text>
+                  )}
+                </View>
+              )}
             </View>
           </Pressable>
         )}
@@ -77,11 +85,19 @@ const styles = StyleSheet.create({
   right: { flexDirection: "row", alignItems: "center", gap: 16 },
   dot: {
     position: "absolute",
-    top: -1,
-    right: -1,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    top: -6,
+    right: -8,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 8,
+    paddingHorizontal: 3,
     backgroundColor: colors.rose500,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dotText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: colors.white,
   },
 });

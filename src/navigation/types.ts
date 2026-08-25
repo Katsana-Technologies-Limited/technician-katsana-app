@@ -11,6 +11,7 @@ export type RootStackParamList = {
   InstallationCompleted: { id: number };
   Profile: undefined;
   ChangePassword: undefined;
+  Notifications: undefined;
 };
 
 export type TabParamList = {
