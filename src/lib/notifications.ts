@@ -4,6 +4,22 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { api } from "@/lib/api";
 
+// As of SDK 53, Expo Go dropped remote/push notification support entirely -
+// merely touching expo-notifications' setup APIs (not just requesting a
+// token) now throws a hard, uncaught "expo-notifications: ... removed from
+// Expo Go" error instead of degrading gracefully. `appOwnership` is
+// deprecated in favor of `executionEnvironment`, but it's kept here
+// specifically because it's the only signal that distinguishes true Expo Go
+// from a custom expo-dev-client build (which DOES support push) -
+// `executionEnvironment` alone can't tell the two apart (both report
+// `StoreClient`). Every exported function below no-ops under Expo Go so the
+// rest of the app (bell, dropdown, in-app list via plain REST) keeps working
+// - only live push delivery is unavailable there, which is an Expo Go
+// platform limitation, not a bug to work around further.
+export function isExpoGo(): boolean {
+  return Constants.appOwnership === "expo";
+}
+
 // Foreground behavior: the OS notification tray/banner is suppressed while
 // the app is open (shouldShowBanner: false) - the in-app NotificationBanner
 // component (mockup state 1) is what shows instead, driven by the
@@ -11,6 +27,7 @@ import { api } from "@/lib/api";
 // (mockups 2 & 3) are handled entirely by the OS using the push payload,
 // not this handler - it only runs while JS is alive in the foreground.
 export function configureNotificationHandler() {
+  if (isExpoGo()) return;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: false,
@@ -26,6 +43,7 @@ export function configureNotificationHandler() {
 // 2). Registered once at app start - the category identifier is referenced
 // server-side (pushNotificationService.js) per notification `type`.
 export async function setupNotificationCategories() {
+  if (isExpoGo()) return;
   await Notifications.setNotificationCategoryAsync("assignment_actions", [
     {
       identifier: "view_task",
@@ -46,6 +64,7 @@ export async function setupNotificationCategories() {
 // (Device.isDevice is false there) or if permission is denied - the rest of
 // the app must keep working either way, this is best-effort.
 export async function registerForPushNotificationsAsync(): Promise<void> {
+  if (isExpoGo()) return;
   if (!Device.isDevice) return;
 
   const existing = await Notifications.getPermissionsAsync();

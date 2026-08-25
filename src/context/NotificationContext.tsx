@@ -11,6 +11,7 @@ import * as Notifications from "expo-notifications";
 import { api, getErrorMessage } from "@/lib/api";
 import {
   configureNotificationHandler,
+  isExpoGo,
   registerForPushNotificationsAsync,
   setupNotificationCategories,
 } from "@/lib/notifications";
@@ -136,10 +137,19 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    refetch();
+
+    // Expo Go dropped remote/push notification support entirely as of SDK
+    // 53 - touching any expo-notifications setup API there throws a hard,
+    // uncaught error instead of degrading gracefully (see isExpoGo's own
+    // comment in lib/notifications.ts). The in-app notification list above
+    // still works fine either way (plain REST) - only live push delivery
+    // is unavailable in Expo Go, which requires a real development build.
+    if (isExpoGo()) return;
+
     configureNotificationHandler();
     setupNotificationCategories();
     registerForPushNotificationsAsync();
-    refetch();
 
     // App is foregrounded - show the in-app banner instead of relying on
     // the OS tray (which is suppressed in this state by the handler above).
