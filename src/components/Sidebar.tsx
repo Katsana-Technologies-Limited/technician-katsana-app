@@ -92,7 +92,7 @@ export function Sidebar() {
           })}
         </View>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
           <Pressable
             style={styles.profileRow}
             onPress={() => {
