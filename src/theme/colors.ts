@@ -31,6 +31,7 @@ export const colors = {
   rose100: "#ffe4e6",
   rose600: "#e11d48",
   sky100: "#e0f2fe",
+  sky500: "#0ea5e9",
   sky600: "#0284c7",
   violet100: "#ede9fe",
   violet600: "#7c3aed",

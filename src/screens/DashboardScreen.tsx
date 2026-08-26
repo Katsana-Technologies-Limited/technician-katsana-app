@@ -1,19 +1,12 @@
 import { View, Text, StyleSheet } from "react-native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
-import {
-  UserRound,
-  ClipboardPlus,
-  CheckCircle2,
-  Loader2,
-  RotateCcw,
-  XCircle,
-} from "lucide-react-native";
+import { UserRound, ChevronDown, FileText } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { TopBar } from "@/components/TopBar";
 import { Card } from "@/components/Card";
 import { Badge } from "@/components/Badge";
-import { StatCard } from "@/components/StatCard";
+import { HistoryStatTile } from "@/components/HistoryStatTile";
 import { AssignmentCard } from "@/components/AssignmentCard";
 import { useAuth } from "@/context/AuthContext";
 import { useSidebar } from "@/context/SidebarContext";
@@ -22,14 +15,16 @@ import { toDisplayAssignment } from "@/lib/assignments";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
-const STAT_CARDS = [
-  { key: "New", label: "New Assignments", icon: ClipboardPlus, tone: colors.sky100 },
-  { key: "Accepted", label: "Accepted", icon: CheckCircle2, tone: colors.emerald100 },
-  { key: "In Progress", label: "In Progress", icon: Loader2, tone: colors.amber100 },
-  { key: "Completed", label: "Completed", icon: CheckCircle2, tone: colors.emerald100 },
-  { key: "Rescheduled", label: "Rescheduled", icon: RotateCcw, tone: colors.violet100 },
-  { key: "Cancelled", label: "Cancelled", icon: XCircle, tone: colors.rose100 },
-] as const;
+// Anything not yet finished or dropped - matches what the "Pending Task"
+// list below actually shows, so the Task History count and the list agree.
+const PENDING_STATUSES = new Set(["New", "Accepted", "In Progress", "Rescheduled"]);
+
+// Collection History has no backend yet (no collection/invoice concept
+// anywhere in this app or vts-backend-katsana) - fake zeroed placeholders
+// so the section reads correctly until a real endpoint exists. Swap for
+// real data in one place once that's wired up.
+const DEMO_TOTAL_COLLECTION = 0;
+const DEMO_INVOICE_COUNT = 0;
 
 export default function DashboardScreen() {
   const { technician } = useAuth();
@@ -38,25 +33,8 @@ export default function DashboardScreen() {
   const { assignments: rawAssignments, isLoading } = useAssignmentsList();
   const assignments = rawAssignments.map(toDisplayAssignment);
 
-  const stats = STAT_CARDS.reduce(
-    (acc, { key }) => {
-      acc[key] = assignments.filter((a) => a.status === key).length;
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
-
-  const today = new Date();
-  const todaysSchedule = rawAssignments
-    .filter((a) => {
-      const d = new Date(a.assigned_on);
-      return (
-        d.getFullYear() === today.getFullYear() &&
-        d.getMonth() === today.getMonth() &&
-        d.getDate() === today.getDate()
-      );
-    })
-    .map(toDisplayAssignment);
+  const pendingAssignments = assignments.filter((a) => PENDING_STATUSES.has(a.status));
+  const completedCount = assignments.filter((a) => a.status === "Completed").length;
 
   return (
     <View style={{ flex: 1 }}>
@@ -75,24 +53,44 @@ export default function DashboardScreen() {
           <Badge variant="accepted">Online</Badge>
         </Card>
 
-        <View>
-          <Text style={styles.sectionTitle}>Today's Overview</Text>
-        </View>
-
-        <View style={styles.statGrid}>
-          {STAT_CARDS.map(({ key, label, icon: Icon, tone }) => (
-            <StatCard
-              key={key}
-              icon={<Icon size={17} color={colors.slate700} />}
-              value={isLoading ? 0 : stats[key] || 0}
-              label={label}
-              tone={tone}
+        <Card>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Task History</Text>
+            <View style={styles.filterPill}>
+              <Text style={styles.filterText}>All time</Text>
+              <ChevronDown size={14} color={colors.slate500} />
+            </View>
+          </View>
+          <View style={styles.tileRow}>
+            <HistoryStatTile
+              value={isLoading ? 0 : pendingAssignments.length}
+              label="Pending Task"
+              color={colors.rose500}
             />
-          ))}
-        </View>
+            <HistoryStatTile
+              value={isLoading ? 0 : completedCount}
+              label="Completed Task"
+              color={colors.emerald500}
+            />
+          </View>
+        </Card>
+
+        <Card>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Collection History</Text>
+            <View style={styles.filterPill}>
+              <Text style={styles.filterText}>All time</Text>
+              <ChevronDown size={14} color={colors.slate500} />
+            </View>
+          </View>
+          <View style={styles.tileRow}>
+            <HistoryStatTile value={DEMO_TOTAL_COLLECTION} label="Total Collection" color={colors.sky500} />
+            <HistoryStatTile value={DEMO_INVOICE_COUNT} label="Invoice Count" color={colors.emerald500} />
+          </View>
+        </Card>
 
         <View style={styles.rowBetween}>
-          <Text style={styles.sectionTitle}>Today's Schedule</Text>
+          <Text style={styles.sectionTitle}>Pending Task</Text>
           <Text
             style={styles.link}
             onPress={() => navigation.navigate("Tabs", { screen: "Assignments" } as never)}
@@ -101,11 +99,19 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
-        {!isLoading && todaysSchedule.length === 0 && (
-          <Text style={styles.empty}>Nothing scheduled for today.</Text>
+        {!isLoading && pendingAssignments.length === 0 && (
+          <Card style={styles.emptyCard}>
+            <View style={styles.emptyIconWrap}>
+              <FileText size={26} color={colors.brand600} />
+            </View>
+            <Text style={styles.emptyTitle}>No tasks pending</Text>
+            <Text style={styles.emptySubtitle}>
+              No pending tasks. We'll notify you when an admin assigns one.
+            </Text>
+          </Card>
         )}
 
-        {todaysSchedule.map((a) => (
+        {pendingAssignments.map((a) => (
           <AssignmentCard
             key={a.id}
             assignment={a}
@@ -130,9 +136,33 @@ const styles = StyleSheet.create({
   },
   greetingLabel: { fontSize: 12, color: colors.slate500 },
   greetingName: { fontSize: 15, fontWeight: "700", color: colors.slate800 },
+  cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  cardTitle: { fontSize: 14, fontWeight: "700", color: colors.slate800 },
+  filterPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  filterText: { fontSize: 12, fontWeight: "600", color: colors.slate600 },
+  tileRow: { flexDirection: "row", gap: 10 },
   sectionTitle: { fontSize: 14, fontWeight: "700", color: colors.slate700 },
-  statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   link: { fontSize: 12, fontWeight: "600", color: colors.brand700 },
-  empty: { textAlign: "center", color: colors.slate400, paddingVertical: 24, fontSize: 13 },
+  emptyCard: { alignItems: "center", paddingVertical: 28, gap: 4 },
+  emptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.brand100,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  emptyTitle: { fontSize: 14, fontWeight: "700", color: colors.slate800 },
+  emptySubtitle: { fontSize: 12, color: colors.slate500, textAlign: "center", maxWidth: 260, lineHeight: 17 },
 });
