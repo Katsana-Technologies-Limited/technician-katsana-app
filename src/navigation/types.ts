@@ -17,6 +17,6 @@ export type RootStackParamList = {
 export type TabParamList = {
   Home: undefined;
   Assignments: undefined;
-  Inventory: undefined;
-  History: undefined;
+  BillCollection: undefined;
+  Settings: undefined;
 };

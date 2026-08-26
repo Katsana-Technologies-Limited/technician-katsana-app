@@ -1,10 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import type { TabParamList } from "@/navigation/types";
 
-// "More" isn't one of the highlightable nav links (mirrors technician-katsana's
-// web NAV_ITEMS, which also excludes the profile/logout route) - it just opens
-// the drawer with nothing highlighted.
-export type SidebarRoute = keyof TabParamList | "More";
+export type SidebarRoute = keyof TabParamList;
 
 interface SidebarContextValue {
   visible: boolean;

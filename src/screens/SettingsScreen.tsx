@@ -16,7 +16,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-export default function MoreScreen() {
+export default function SettingsScreen() {
   const {
     technician,
     logout,
@@ -49,7 +49,7 @@ export default function MoreScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="More" onMenuPress={() => open("More")} />
+      <TopBar title="Menu" onMenuPress={() => open("Settings")} />
       <Screen>
         <Pressable onPress={() => navigation.navigate("Profile")}>
           <Card style={styles.profileCard}>
@@ -76,7 +76,7 @@ export default function MoreScreen() {
           >
             <View style={styles.rowLabel}>
               <UserRound size={18} color={colors.slate500} />
-              <Text style={styles.rowText}>Profile</Text>
+              <Text style={styles.rowText}>Edit Profile</Text>
             </View>
             <ChevronRight size={18} color={colors.slate400} />
           </Pressable>

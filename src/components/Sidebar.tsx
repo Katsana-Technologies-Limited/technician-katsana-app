@@ -3,7 +3,7 @@ import { View, Text, Image, Pressable, StyleSheet, Animated } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Home, ClipboardList, Package, History as HistoryIcon, X, UserRound, LogOut } from "lucide-react-native";
+import { Home, CheckCircle2, CreditCard, X, LogOut } from "lucide-react-native";
 import { useSidebar, type SidebarRoute } from "@/context/SidebarContext";
 import { useAuth } from "@/context/AuthContext";
 import { colors } from "@/theme/colors";
@@ -13,17 +13,12 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const NAV_ITEMS: Array<{ key: SidebarRoute; label: string; icon: typeof Home }> = [
   { key: "Home", label: "Home", icon: Home },
-  { key: "Assignments", label: "Assignments", icon: ClipboardList },
-  { key: "Inventory", label: "Inventory", icon: Package },
-  { key: "History", label: "History", icon: HistoryIcon },
+  { key: "Assignments", label: "Task", icon: CheckCircle2 },
+  { key: "BillCollection", label: "Bill Collection", icon: CreditCard },
 ];
 
 const DRAWER_WIDTH = 256;
 
-// Mirrors technician-katsana's mobile slide-in drawer (TechnicianShell.tsx):
-// dark backdrop + white panel sliding in from the left, same nav links,
-// profile row, and logout action. Always mounted (rather than unmounted when
-// closed) so the closing slide-out animation has something to animate.
 export function Sidebar() {
   const { visible, activeRoute, close } = useSidebar();
   const { technician, logout } = useAuth();
@@ -47,7 +42,7 @@ export function Sidebar() {
     ]).start();
   }, [visible, translateX, backdropOpacity]);
 
-  const goToTab = (screen: "Home" | "Assignments" | "Inventory" | "History" | "More") => {
+  const goToTab = (screen: "Home" | "Assignments" | "BillCollection") => {
     close();
     navigation.navigate("Tabs", { screen } as never);
   };
@@ -85,7 +80,7 @@ export function Sidebar() {
             return (
               <Pressable
                 key={key}
-                onPress={() => goToTab(key as "Home" | "Assignments" | "Inventory" | "History")}
+                onPress={() => goToTab(key as "Home" | "Assignments" | "BillCollection")}
                 style={[styles.navItem, active && styles.navItemActive]}
               >
                 <Icon size={18} color={active ? colors.white : colors.slate600} />

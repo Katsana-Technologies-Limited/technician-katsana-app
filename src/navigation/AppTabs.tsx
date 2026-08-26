@@ -1,24 +1,20 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Home, ClipboardList, Package, History, MoreHorizontal } from "lucide-react-native";
+import { Home, CheckCircle2, CreditCard, MoreHorizontal } from "lucide-react-native";
 import DashboardScreen from "@/screens/DashboardScreen";
 import AssignmentsScreen from "@/screens/AssignmentsScreen";
 import { PlaceholderScreen } from "@/screens/PlaceholderScreen";
-import MoreScreen from "@/screens/MoreScreen";
+import SettingsScreen from "@/screens/SettingsScreen";
 import { Sidebar } from "@/components/Sidebar";
 import { SidebarProvider, useSidebar } from "@/context/SidebarContext";
 import { colors } from "@/theme/colors";
 import type { TabParamList } from "./types";
 
-const Tab = createBottomTabNavigator<TabParamList & { More: undefined }>();
+const Tab = createBottomTabNavigator<TabParamList>();
 
-function InventoryScreen() {
+function BillCollectionScreen() {
   const { open } = useSidebar();
-  return <PlaceholderScreen title="Inventory" onMenuPress={() => open("Inventory")} />;
-}
-function HistoryScreen() {
-  const { open } = useSidebar();
-  return <PlaceholderScreen title="History" onMenuPress={() => open("History")} />;
+  return <PlaceholderScreen title="Bill Collection" onMenuPress={() => open("BillCollection")} />;
 }
 
 function Tabs() {
@@ -52,23 +48,23 @@ function Tabs() {
         name="Assignments"
         component={AssignmentsScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} />,
+          tabBarLabel: "Task",
+          tabBarIcon: ({ color, size }) => <CheckCircle2 color={color} size={size} />,
         }}
       />
       <Tab.Screen
-        name="Inventory"
-        component={InventoryScreen}
-        options={{ tabBarIcon: ({ color, size }) => <Package color={color} size={size} /> }}
-      />
-      <Tab.Screen
-        name="History"
-        component={HistoryScreen}
-        options={{ tabBarIcon: ({ color, size }) => <History color={color} size={size} /> }}
-      />
-      <Tab.Screen
-        name="More"
-        component={MoreScreen}
+        name="BillCollection"
+        component={BillCollectionScreen}
         options={{
+          tabBarLabel: "Bill Collection",
+          tabBarIcon: ({ color, size }) => <CreditCard color={color} size={size} />,
+        }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          tabBarLabel: "Menu",
           tabBarIcon: ({ color, size }) => <MoreHorizontal color={color} size={size} />,
         }}
       />
