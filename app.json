@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.katsanatech.technician",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0d3b3d",
         "foregroundImage": "./assets/applogo.png",
@@ -23,7 +24,8 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
-      ]
+      ],
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"

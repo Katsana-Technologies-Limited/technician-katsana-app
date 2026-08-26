@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ClipboardList, X } from "lucide-react-native";
@@ -8,30 +8,71 @@ import { useNotifications } from "@/context/NotificationContext";
 import { navigate } from "@/navigation/navigationRef";
 
 const AUTO_DISMISS_MS = 6000;
+const ENTER_MS = 220;
+const EXIT_MS = 180;
 
 // Mounted once at the app root (App.tsx) so it can render above every
-// screen. Only visible while `banner` is set in NotificationContext - shows
-// for AUTO_DISMISS_MS with a shrinking progress bar (mockup state 1: "when
-// app is open"), matching how NotificationContext's own showBanner() timer
-// is set to the same duration.
+// screen. NotificationContext holds a FIFO queue of incoming toasts (one per
+// push received while the app is foregrounded, mockup state 1) - this
+// component owns all of the actual timing/animation for whichever toast is
+// at the head of that queue: it slides/fades in from the top, counts down
+// with a shrinking progress bar, then slides/fades out before calling
+// dismissBanner() to pop the queue and reveal the next one (react-toastify's
+// "one at a time" behavior). `rendered` intentionally lags behind `banner`
+// on the way to null/next so the exit animation has something to animate.
 export function NotificationBanner() {
   const { banner, dismissBanner } = useNotifications();
   const insets = useSafeAreaInsets();
   const progress = useRef(new Animated.Value(1)).current;
+  const translateY = useRef(new Animated.Value(-24)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const exiting = useRef(false);
+
+  const [rendered, setRendered] = useState(banner);
+
+  const runExit = () => {
+    if (exiting.current) return;
+    exiting.current = true;
+    if (autoTimer.current) clearTimeout(autoTimer.current);
+    Animated.parallel([
+      Animated.timing(translateY, { toValue: -24, duration: EXIT_MS, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0, duration: EXIT_MS, useNativeDriver: true }),
+    ]).start(() => {
+      setRendered(null);
+      dismissBanner();
+    });
+  };
 
   useEffect(() => {
     if (!banner) return;
+    exiting.current = false;
+    setRendered(banner);
+    translateY.setValue(-24);
+    opacity.setValue(0);
     progress.setValue(1);
-    const anim = Animated.timing(progress, {
+
+    Animated.parallel([
+      Animated.timing(translateY, { toValue: 0, duration: ENTER_MS, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: ENTER_MS, useNativeDriver: true }),
+    ]).start();
+
+    const progressAnim = Animated.timing(progress, {
       toValue: 0,
       duration: AUTO_DISMISS_MS,
       useNativeDriver: false,
     });
-    anim.start();
-    return () => anim.stop();
-  }, [banner, progress]);
+    progressAnim.start();
+    autoTimer.current = setTimeout(runExit, AUTO_DISMISS_MS);
 
-  if (!banner) return null;
+    return () => {
+      progressAnim.stop();
+      if (autoTimer.current) clearTimeout(autoTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [banner?.id]);
+
+  if (!rendered) return null;
 
   const time = new Date().toLocaleTimeString([], {
     hour: "numeric",
@@ -39,63 +80,65 @@ export function NotificationBanner() {
   });
 
   return (
-    <View style={[styles.wrap, { top: insets.top + TOP_BAR_HEIGHT + 8 }]} pointerEvents="box-none">
-      <Pressable
-        style={styles.card}
-        onPress={() => {
-          if (banner.assignmentId) {
-            navigate("AssignmentDetails", { id: banner.assignmentId });
-          }
-          dismissBanner();
-        }}
-      >
-        <View style={styles.row}>
-          <View style={styles.iconBadge}>
-            <ClipboardList size={18} color={colors.emerald600} />
-          </View>
-          <View style={styles.textCol}>
-            <View style={styles.titleRow}>
-              <Text style={styles.title} numberOfLines={1}>
-                {banner.title}
-              </Text>
-              <Text style={styles.time}>{time}</Text>
+    <View style={[styles.wrap, { top: insets.top + TOP_BAR_HEIGHT + 6.5 }]} pointerEvents="box-none">
+      <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+        <Pressable
+          style={styles.card}
+          onPress={() => {
+            if (rendered.assignmentId) {
+              navigate("AssignmentDetails", { id: rendered.assignmentId });
+            }
+            runExit();
+          }}
+        >
+          <View style={styles.row}>
+            <View style={styles.iconBadge}>
+              <ClipboardList size={18} color={colors.emerald600} />
             </View>
-            {banner.body ? (
-              <Text style={styles.body} numberOfLines={2}>
-                {banner.body}
-              </Text>
-            ) : null}
+            <View style={styles.textCol}>
+              <View style={styles.titleRow}>
+                <Text style={styles.title} numberOfLines={1}>
+                  {rendered.title}
+                </Text>
+                <Text style={styles.time}>{time}</Text>
+              </View>
+              {rendered.body ? (
+                <Text style={styles.body} numberOfLines={2}>
+                  {rendered.body}
+                </Text>
+              ) : null}
+            </View>
+            <Pressable onPress={runExit} hitSlop={10} style={styles.closeBtn}>
+              <X size={16} color={colors.slate400} />
+            </Pressable>
           </View>
-          <Pressable onPress={dismissBanner} hitSlop={10} style={styles.closeBtn}>
-            <X size={16} color={colors.slate400} />
-          </Pressable>
-        </View>
 
-        {banner.assignmentId ? (
-          <Pressable
-            onPress={() => {
-              navigate("AssignmentDetails", { id: banner.assignmentId! });
-              dismissBanner();
-            }}
-          >
-            <Text style={styles.viewDetails}>View Details</Text>
-          </Pressable>
-        ) : null}
+          {rendered.assignmentId ? (
+            <Pressable
+              onPress={() => {
+                navigate("AssignmentDetails", { id: rendered.assignmentId! });
+                runExit();
+              }}
+            >
+              <Text style={styles.viewDetails}>View Details</Text>
+            </Pressable>
+          ) : null}
 
-        <View style={styles.progressTrack}>
-          <Animated.View
-            style={[
-              styles.progressFill,
-              {
-                width: progress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["0%", "100%"],
-                }),
-              },
-            ]}
-          />
-        </View>
-      </Pressable>
+          <View style={styles.progressTrack}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  width: progress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ["0%", "100%"],
+                  }),
+                },
+              ]}
+            />
+          </View>
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -110,7 +153,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.white,
-    borderRadius: 14,
+    borderRadius: 10,
     paddingTop: 12,
     paddingHorizontal: 14,
     paddingBottom: 8,

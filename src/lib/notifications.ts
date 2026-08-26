@@ -37,8 +37,22 @@ export async function configureNotificationHandler() {
       shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: false,
+      priority: Notifications.AndroidNotificationPriority.HIGH,
     }),
   });
+
+  // Android requires an explicit channel for sound to reliably play on
+  // notifications posted while shouldShowBanner is false - "default" is the
+  // channel Expo's push service posts to when a message (like the ones sent
+  // from pushNotificationService.js) doesn't specify a channelId of its own.
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "Assignment notifications",
+      importance: Notifications.AndroidImportance.HIGH,
+      sound: "default",
+      vibrationPattern: [0, 250, 250, 250],
+    });
+  }
 }
 
 // "assignment_actions" category drives the "View Task" / "Accept Task"

@@ -27,12 +27,13 @@ export interface AppNotification {
   created_at: string;
 }
 
-// The single active in-app top banner (mockup state 1) - one at a time,
-// matching the mockup's single-card design. A second notification arriving
-// while one is showing simply replaces it rather than queueing, since
-// there's no unread badge shown ON the banner itself and the bell already
-// tracks the real backlog.
+// The in-app top toast (mockup state 1). Multiple notifications arriving in
+// quick succession are queued (FIFO) and shown one at a time, react-toastify
+// style - NotificationBanner pops the queue (via dismissBanner) only once
+// the current toast's own exit animation has finished, so a burst of pushes
+// never causes two cards to overlap or one to snap directly into the next.
 interface BannerState {
+  id: number;
   title: string;
   body: string | null;
   assignmentId?: number;
@@ -69,8 +70,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [banner, setBanner] = useState<BannerState | null>(null);
-  const bannerTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [toastQueue, setToastQueue] = useState<BannerState[]>([]);
+  const toastIdRef = useRef(0);
+  const banner = toastQueue[0] ?? null;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const openDropdown = useCallback(() => setIsDropdownOpen(true), []);
   const closeDropdown = useCallback(() => setIsDropdownOpen(false), []);
@@ -114,19 +116,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Pops the current toast so the next queued one (if any) takes its place.
+  // Called by NotificationBanner once - and only once - its exit animation
+  // for the current toast has finished; all auto-dismiss/animation timing
+  // lives there, this just advances the queue.
   const dismissBanner = useCallback(() => {
-    if (bannerTimeout.current) clearTimeout(bannerTimeout.current);
-    setBanner(null);
+    setToastQueue((prev) => prev.slice(1));
   }, []);
 
-  const showBanner = useCallback(
-    (next: BannerState) => {
-      if (bannerTimeout.current) clearTimeout(bannerTimeout.current);
-      setBanner(next);
-      bannerTimeout.current = setTimeout(() => setBanner(null), 6000);
-    },
-    [],
-  );
+  const showBanner = useCallback((next: Omit<BannerState, "id">) => {
+    toastIdRef.current += 1;
+    setToastQueue((prev) => [...prev, { ...next, id: toastIdRef.current }]);
+  }, []);
 
   // Registration + listener setup - once per login, torn down on logout.
   useEffect(() => {
@@ -172,13 +173,38 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           assignmentId?: number;
           notificationId?: number;
         };
+        const title = content.title || "New notification";
+        const body = content.body || null;
         showBanner({
-          title: content.title || "New notification",
-          body: content.body || null,
+          title,
+          body,
           assignmentId: data.assignmentId,
           notificationId: data.notificationId,
         });
         setUnreadCount((prev) => prev + 1);
+
+        // Optimistically add it to the bell dropdown/list too, so tapping
+        // the bell right after a toast shows the new item as unread instead
+        // of waiting for the next refetch() to catch up.
+        const notificationId = data.notificationId;
+        if (notificationId) {
+          setNotifications((prev) =>
+            prev.some((item) => item.id === notificationId)
+              ? prev
+              : [
+                  {
+                    id: notificationId,
+                    type: "push",
+                    title,
+                    body,
+                    data: { assignmentId: data.assignmentId, notificationId },
+                    read_at: null,
+                    created_at: new Date().toISOString(),
+                  },
+                  ...prev,
+                ],
+          );
+        }
       });
 
       // Tap on the banner/OS notification, or one of its action buttons.
