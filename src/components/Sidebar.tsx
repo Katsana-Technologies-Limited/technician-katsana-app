@@ -9,6 +9,8 @@ import { useAuth } from "@/context/AuthContext";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
 const NAV_ITEMS: Array<{ key: SidebarRoute; label: string; icon: typeof Home }> = [
   { key: "Home", label: "Home", icon: Home },
   { key: "Assignments", label: "Assignments", icon: ClipboardList },
@@ -55,6 +57,7 @@ export function Sidebar() {
     .map((w) => w[0])
     .slice(0, 2)
     .join("");
+  const photoUri = technician?.photo ? `${API_URL}${technician.photo}` : null;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={visible ? "auto" : "none"}>
@@ -100,9 +103,13 @@ export function Sidebar() {
               navigation.navigate("Profile");
             }}
           >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
+            {photoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.profileName} numberOfLines={1}>
                 {technician?.name ?? "Technician"}
@@ -162,6 +169,7 @@ const styles = StyleSheet.create({
   footer: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.slate100, padding: 12, gap: 4 },
   profileRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 8, borderRadius: 10, backgroundColor: colors.slate50 },
   avatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.slate200, alignItems: "center", justifyContent: "center" },
+  avatarImage: { width: 34, height: 34, borderRadius: 17 },
   avatarText: { fontSize: 12, fontWeight: "700", color: colors.slate600 },
   profileName: { fontSize: 13, fontWeight: "600", color: colors.slate700 },
   profileRole: { fontSize: 11, color: colors.brand600, marginTop: 1 },
