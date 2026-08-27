@@ -19,6 +19,35 @@ interface VehicleType {
   name: string;
 }
 
+interface RechargeResult {
+  status: "SUCCESS" | "FAILED" | "PROCESSING";
+  mobile?: string;
+  amount?: number;
+  message?: string | null;
+}
+
+// SIM recharge fires as part of Start Installation's own response now (see
+// startAssignment, assignmentController.js) - `recharge` is null when the
+// subscription had no SIM assigned (nothing to report), otherwise its
+// initial outcome: SUCCESS/FAILED are final, PROCESSING means Success TopUp
+// accepted the request but hasn't confirmed it yet.
+function showRechargeAlert(recharge: RechargeResult | null | undefined) {
+  if (!recharge) {
+    Alert.alert("Recharge skipped", "No SIM assigned to this subscription.");
+    return;
+  }
+  const target = recharge.mobile
+    ? `৳${recharge.amount ?? ""} to ${recharge.mobile}`
+    : `৳${recharge.amount ?? ""} recharge`;
+  if (recharge.status === "SUCCESS") {
+    Alert.alert("SIM recharge successful", target);
+  } else if (recharge.status === "PROCESSING") {
+    Alert.alert("SIM recharge submitted", `${target} - confirming with Success TopUp...`);
+  } else {
+    Alert.alert("SIM recharge failed", `${target}\n${recharge.message || "Unknown error"}`);
+  }
+}
+
 export default function StartInstallationScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, "StartInstallation">>();
@@ -57,12 +86,13 @@ export default function StartInstallationScreen() {
     const selectedType = vehicleTypes.find((v) => v.name === form.vehicleType);
     setIsSaving(true);
     try {
-      await api.post(`/api/technician/assignments/${id}/start`, {
+      const res = await api.post(`/api/technician/assignments/${id}/start`, {
         registration_no: form.vehicleNumber.trim(),
         chassis_no: form.chassisNumber.trim(),
         engine_no: form.engineNumber.trim() || null,
         vehicle_type_id: selectedType?.id,
       });
+      showRechargeAlert(res.data?.recharge);
       navigation.navigate("InstallationForm", { id });
     } catch (err: any) {
       Alert.alert(getErrorMessage(err, "Failed to start installation"));
