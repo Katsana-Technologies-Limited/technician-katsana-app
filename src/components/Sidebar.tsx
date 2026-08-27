@@ -3,25 +3,22 @@ import { View, Text, Image, Pressable, StyleSheet, Animated } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Home, ClipboardList, Package, History as HistoryIcon, X, UserRound, LogOut } from "lucide-react-native";
+import { Home, CheckCircle2, CreditCard, X, LogOut } from "lucide-react-native";
 import { useSidebar, type SidebarRoute } from "@/context/SidebarContext";
 import { useAuth } from "@/context/AuthContext";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
 const NAV_ITEMS: Array<{ key: SidebarRoute; label: string; icon: typeof Home }> = [
   { key: "Home", label: "Home", icon: Home },
-  { key: "Assignments", label: "Assignments", icon: ClipboardList },
-  { key: "Inventory", label: "Inventory", icon: Package },
-  { key: "History", label: "History", icon: HistoryIcon },
+  { key: "Assignments", label: "Task", icon: CheckCircle2 },
+  { key: "BillCollection", label: "Bill Collection", icon: CreditCard },
 ];
 
 const DRAWER_WIDTH = 256;
 
-// Mirrors technician-katsana's mobile slide-in drawer (TechnicianShell.tsx):
-// dark backdrop + white panel sliding in from the left, same nav links,
-// profile row, and logout action. Always mounted (rather than unmounted when
-// closed) so the closing slide-out animation has something to animate.
 export function Sidebar() {
   const { visible, activeRoute, close } = useSidebar();
   const { technician, logout } = useAuth();
@@ -45,7 +42,7 @@ export function Sidebar() {
     ]).start();
   }, [visible, translateX, backdropOpacity]);
 
-  const goToTab = (screen: "Home" | "Assignments" | "Inventory" | "History" | "More") => {
+  const goToTab = (screen: "Home" | "Assignments" | "BillCollection") => {
     close();
     navigation.navigate("Tabs", { screen } as never);
   };
@@ -55,6 +52,7 @@ export function Sidebar() {
     .map((w) => w[0])
     .slice(0, 2)
     .join("");
+  const photoUri = technician?.photo ? `${API_URL}${technician.photo}` : null;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={visible ? "auto" : "none"}>
@@ -82,7 +80,7 @@ export function Sidebar() {
             return (
               <Pressable
                 key={key}
-                onPress={() => goToTab(key as "Home" | "Assignments" | "Inventory" | "History")}
+                onPress={() => goToTab(key as "Home" | "Assignments" | "BillCollection")}
                 style={[styles.navItem, active && styles.navItemActive]}
               >
                 <Icon size={18} color={active ? colors.white : colors.slate600} />
@@ -92,7 +90,7 @@ export function Sidebar() {
           })}
         </View>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
           <Pressable
             style={styles.profileRow}
             onPress={() => {
@@ -100,9 +98,13 @@ export function Sidebar() {
               navigation.navigate("Profile");
             }}
           >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
+            {photoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.profileName} numberOfLines={1}>
                 {technician?.name ?? "Technician"}
@@ -162,6 +164,7 @@ const styles = StyleSheet.create({
   footer: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.slate100, padding: 12, gap: 4 },
   profileRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 8, borderRadius: 10, backgroundColor: colors.slate50 },
   avatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.slate200, alignItems: "center", justifyContent: "center" },
+  avatarImage: { width: 34, height: 34, borderRadius: 17 },
   avatarText: { fontSize: 12, fontWeight: "700", color: colors.slate600 },
   profileName: { fontSize: 13, fontWeight: "600", color: colors.slate700 },
   profileRole: { fontSize: 11, color: colors.brand600, marginTop: 1 },

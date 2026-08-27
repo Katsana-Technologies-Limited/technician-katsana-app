@@ -11,11 +11,12 @@ export type RootStackParamList = {
   InstallationCompleted: { id: number };
   Profile: undefined;
   ChangePassword: undefined;
+  Notifications: undefined;
 };
 
 export type TabParamList = {
   Home: undefined;
   Assignments: undefined;
-  Inventory: undefined;
-  History: undefined;
+  BillCollection: undefined;
+  Settings: undefined;
 };

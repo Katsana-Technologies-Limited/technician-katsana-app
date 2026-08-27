@@ -11,7 +11,9 @@ import InstallationFormScreen from "@/screens/InstallationFormScreen";
 import InstallationCompletedScreen from "@/screens/InstallationCompletedScreen";
 import ProfileScreen from "@/screens/ProfileScreen";
 import ChangePasswordScreen from "@/screens/ChangePasswordScreen";
+import NotificationsScreen from "@/screens/NotificationsScreen";
 import { AppTabs } from "./AppTabs";
+import { navigationRef } from "./navigationRef";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -45,7 +47,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!technician ? (
           <Stack.Screen name="Login" component={LoginScreen} />
@@ -59,6 +61,7 @@ export default function RootNavigator() {
             <Stack.Screen name="InstallationCompleted" component={InstallationCompletedScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
           </>
         )}
       </Stack.Navigator>

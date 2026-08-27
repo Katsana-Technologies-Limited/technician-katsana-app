@@ -2,6 +2,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Menu, ChevronLeft, Bell, Search } from "lucide-react-native";
 import { colors } from "@/theme/colors";
+import { useNotifications } from "@/context/NotificationContext";
 
 interface TopBarProps {
   title: string;
@@ -11,6 +12,14 @@ interface TopBarProps {
   rightSlot?: React.ReactNode;
   showBell?: boolean;
 }
+
+// The bar's own rendered height below the safe-area inset: the extra 18px
+// top padding (on top of insets.top, added inline below) + the icon row's
+// height (22px, the largest child - Menu/ChevronLeft) + the 18px bottom
+// padding. NotificationBanner/NotificationDropdown add this to insets.top so
+// they render below this bar instead of on top of it - keep in sync with
+// the `bar`/icon styles below if either changes.
+export const TOP_BAR_HEIGHT = 18 + 22 + 18;
 
 // Matches the reference mockup's light top bar: hamburger (or back chevron)
 // + title on the left, optional search/bell on the right. The bottom tab
@@ -27,6 +36,7 @@ export function TopBar({
   showBell = !onBack,
 }: TopBarProps) {
   const insets = useSafeAreaInsets();
+  const { unreadCount, toggleDropdown } = useNotifications();
   return (
     <View style={[styles.bar, { paddingTop: insets.top + 18 }]}>
       <View style={styles.left}>
@@ -49,10 +59,16 @@ export function TopBar({
         )}
         {rightSlot}
         {showBell && (
-          <Pressable hitSlop={10}>
+          <Pressable hitSlop={10} onPress={toggleDropdown}>
             <View>
               <Bell size={20} color={colors.slate600} />
-              <View style={styles.dot} />
+              {unreadCount > 0 && (
+                <View style={styles.dot}>
+                  {unreadCount <= 9 && (
+                    <Text style={styles.dotText}>{unreadCount}</Text>
+                  )}
+                </View>
+              )}
             </View>
           </Pressable>
         )}
@@ -77,11 +93,19 @@ const styles = StyleSheet.create({
   right: { flexDirection: "row", alignItems: "center", gap: 16 },
   dot: {
     position: "absolute",
-    top: -1,
-    right: -1,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    top: -6,
+    right: -8,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 8,
+    paddingHorizontal: 3,
     backgroundColor: colors.rose500,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dotText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: colors.white,
   },
 });

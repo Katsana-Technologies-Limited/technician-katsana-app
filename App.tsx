@@ -3,6 +3,9 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/context/AuthContext";
+import { NotificationProvider } from "@/context/NotificationContext";
+import { NotificationBanner } from "@/components/NotificationBanner";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
 import RootNavigator from "@/navigation/RootNavigator";
 
 export default function App() {
@@ -10,8 +13,12 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <StatusBar style="dark" />
-          <RootNavigator />
+          <NotificationProvider>
+            <StatusBar style="dark" />
+            <RootNavigator />
+            <NotificationBanner />
+            <NotificationDropdown />
+          </NotificationProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

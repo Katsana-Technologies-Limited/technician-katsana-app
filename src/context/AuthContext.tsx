@@ -30,7 +30,7 @@ interface AuthContextValue {
   login: (mobile: string, password: string, remember: boolean) => Promise<void>;
   logout: () => Promise<void>;
   // Device has a fingerprint/Face ID sensor with at least one enrolled -
-  // gates whether MoreScreen even offers the toggle at all.
+  // gates whether SettingsScreen even offers the toggle at all.
   biometricSupported: boolean;
   // The technician's own opt-in preference, persisted across app restarts.
   biometricEnabled: boolean;

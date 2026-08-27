@@ -17,9 +17,15 @@ const STATUS_BADGE: Record<string, BadgeVariant> = {
 export function AssignmentCard({
   assignment,
   onPress,
+  // Defaults to the subscription number (what's meaningful to a
+  // technician) - the Assignments list screen overrides this to the
+  // assignment_number instead, since it's the one place a technician needs
+  // to tell apart multiple visits for the same subscription.
+  displayNumber,
 }: {
   assignment: DisplayAssignment;
   onPress: () => void;
+  displayNumber?: string;
 }) {
   return (
     <Pressable onPress={onPress}>
@@ -29,7 +35,7 @@ export function AssignmentCard({
         </View>
         <View style={styles.body}>
           <View style={styles.topRow}>
-            <Text style={styles.id}>{assignment.assignmentNumber}</Text>
+            <Text style={styles.id}>{displayNumber ?? assignment.subscriptionNumber}</Text>
             <Badge variant={STATUS_BADGE[assignment.status]}>{assignment.status}</Badge>
           </View>
           <Text style={styles.name}>{assignment.customerName}</Text>

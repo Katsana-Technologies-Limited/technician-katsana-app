@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Katsana FieldForce",
-    "slug": "technician-katsana-app",
+    "slug": "mominhossainmbstu",
     "scheme": "technician-katsana",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.katsanatech.technician",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0d3b3d",
         "foregroundImage": "./assets/applogo.png",
@@ -23,7 +24,8 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
-      ]
+      ],
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -51,13 +53,20 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/applogo.png",
+          "color": "#14958a"
+        }
       ]
     ],
     "extra": {
       "eas": {
-        "projectId": "50b1d4f1-f9bb-46be-95d5-4bdb66e9ba0a"
+        "projectId": "ba4eab50-6d58-4e21-b011-eb10ad7588a2"
       }
     },
-    "owner": "momin-hossain-mbstu"
+    "owner": "mominhossainmbstus-team"
   }
 }

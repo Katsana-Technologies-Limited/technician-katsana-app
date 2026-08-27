@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { View, Text, StyleSheet, Alert } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -11,8 +12,37 @@ import { Button } from "@/components/Button";
 import { Skeleton } from "@/components/Skeleton";
 import { useAssignmentDetail } from "@/hooks/useAssignments";
 import { toDisplayAssignment, formatDateTime } from "@/lib/assignments";
+import { api, getErrorMessage } from "@/lib/api";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
+
+interface RechargeResult {
+  status: "SUCCESS" | "FAILED" | "PROCESSING";
+  mobile?: string;
+  amount?: number;
+  message?: string | null;
+}
+
+// `recharge` is null when the subscription had no SIM assigned (nothing to
+// report), otherwise its initial outcome: SUCCESS/FAILED are final,
+// PROCESSING means Success TopUp accepted the request but hasn't confirmed
+// it yet (resolved later via webhook/poll).
+function showRechargeAlert(recharge: RechargeResult | null | undefined) {
+  if (!recharge) {
+    Alert.alert("Recharge skipped", "No SIM assigned to this subscription.");
+    return;
+  }
+  const target = recharge.mobile
+    ? `৳${recharge.amount ?? ""} to ${recharge.mobile}`
+    : `৳${recharge.amount ?? ""} recharge`;
+  if (recharge.status === "SUCCESS") {
+    Alert.alert("SIM recharge successful", target);
+  } else if (recharge.status === "PROCESSING") {
+    Alert.alert("SIM recharge submitted", `${target} - confirming with Success TopUp...`);
+  } else {
+    Alert.alert("SIM recharge failed", `${target}\n${recharge.message || "Unknown error"}`);
+  }
+}
 
 function ProgressSkeleton({ onBack }: { onBack: () => void }) {
   return (
@@ -46,6 +76,7 @@ export default function InstallationProgressScreen() {
   const insets = useSafeAreaInsets();
   const { id } = route.params;
   const { detail, isLoading } = useAssignmentDetail(id);
+  const [isStarting, setIsStarting] = useState(false);
 
   if (isLoading) {
     return <ProgressSkeleton onBack={() => navigation.goBack()} />;
@@ -69,22 +100,41 @@ export default function InstallationProgressScreen() {
   ];
   const currentIdx = steps.findIndex((s) => !s.done);
 
-  // Already in progress - skip back over Start Installation (already
-  // submitted) and go straight into the wizard, which resumes at whichever
-  // step was last saved. Nothing left to do once Completed.
+  // Start Installation itself now calls the API (flips status, fires the
+  // SIM recharge) before navigating on to the vehicle-info form - it's no
+  // longer just a link to that form. Already in progress - skip straight
+  // into the wizard, which resumes at whichever step was last saved (no API
+  // call needed, that already happened). Nothing left to do once Completed.
+  const handleStartInstallation = async () => {
+    setIsStarting(true);
+    try {
+      const res = await api.post(`/api/technician/assignments/${id}/start`);
+      showRechargeAlert(res.data?.recharge);
+      navigation.navigate("StartInstallation", { id });
+    } catch (err: any) {
+      Alert.alert(getErrorMessage(err, "Failed to start installation"));
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
   const nextAction =
     raw.status === "In Progress"
-      ? { label: "Continue Installation", onPress: () => navigation.navigate("InstallationForm", { id }) }
+      ? { label: "Continue Installation", onPress: () => navigation.navigate("InstallationForm", { id }), disabled: false }
       : raw.status === "Completed"
         ? null
-        : { label: "Start Installation", onPress: () => navigation.navigate("StartInstallation", { id }) };
+        : {
+            label: isStarting ? "Starting..." : "Start Installation",
+            onPress: handleStartInstallation,
+            disabled: isStarting,
+          };
 
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Installation Progress" onBack={() => navigation.goBack()} />
       <Screen style={{ paddingBottom: 120 }}>
         <View style={styles.headerRow}>
-          <Text style={styles.id}>{assignment.assignmentNumber}</Text>
+          <Text style={styles.id}>{assignment.subscriptionNumber}</Text>
           <Badge variant="inProgress">{assignment.status}</Badge>
         </View>
         <Text style={styles.vehicle}>{assignment.vehicleNumber}</Text>
@@ -132,7 +182,7 @@ export default function InstallationProgressScreen() {
 
       {nextAction && (
         <View style={[styles.stickyCta, { paddingBottom: insets.bottom + 10 }]}>
-          <Button onPress={nextAction.onPress}>{nextAction.label}</Button>
+          <Button onPress={nextAction.onPress} disabled={nextAction.disabled}>{nextAction.label}</Button>
           <Button
             variant="danger"
             onPress={() => Alert.alert("Issue reported to dispatch")}

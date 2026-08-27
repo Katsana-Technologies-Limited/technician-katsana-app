@@ -57,7 +57,11 @@ export default function StartInstallationScreen() {
     const selectedType = vehicleTypes.find((v) => v.name === form.vehicleType);
     setIsSaving(true);
     try {
-      await api.post(`/api/technician/assignments/${id}/start`, {
+      // Start Installation itself already ran on the previous screen
+      // (InstallationProgressScreen.tsx - flips status, fires the
+      // recharge); this is just the first wizard step's save, same PATCH
+      // every later step uses.
+      await api.patch(`/api/technician/assignments/${id}/installation`, {
         registration_no: form.vehicleNumber.trim(),
         chassis_no: form.chassisNumber.trim(),
         engine_no: form.engineNumber.trim() || null,
