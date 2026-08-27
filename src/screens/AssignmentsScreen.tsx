@@ -83,6 +83,7 @@ export default function AssignmentsScreen() {
             <AssignmentCard
               key={a.id}
               assignment={a}
+              displayNumber={a.assignmentNumber}
               onPress={() => navigation.navigate("AssignmentDetails", { id: a.id })}
             />
           ))

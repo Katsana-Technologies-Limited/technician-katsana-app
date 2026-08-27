@@ -102,7 +102,7 @@ export default function AssignmentDetailsScreen() {
   };
 
   const openMoreActions = () => {
-    Alert.alert(assignment.assignmentNumber, undefined, [
+    Alert.alert(assignment.subscriptionNumber, undefined, [
       { text: "Directions", onPress: openDirections },
       { text: "Reschedule", onPress: () => Alert.alert("Reschedule flow coming soon") },
       {
@@ -128,7 +128,7 @@ export default function AssignmentDetailsScreen() {
       <Screen style={{ paddingBottom: 140 }}>
         <View>
           <Badge variant={STATUS_BADGE[assignment.status] ?? "new"}>{assignment.status}</Badge>
-          <Text style={styles.id}>{assignment.assignmentNumber}</Text>
+          <Text style={styles.id}>{assignment.subscriptionNumber}</Text>
           <Text style={styles.type}>{assignment.type}</Text>
           <Text style={styles.assignedOn}>Assigned On {assignment.assignedOn}</Text>
         </View>
@@ -178,7 +178,7 @@ export default function AssignmentDetailsScreen() {
             <Text style={styles.dialogTitle}>Accept this Assignment?</Text>
             <Text style={styles.dialogBody}>
               You are about to accept the installation job{"\n"}
-              <Text style={styles.dialogBold}>{assignment.assignmentNumber}</Text>
+              <Text style={styles.dialogBold}>{assignment.subscriptionNumber}</Text>
             </Text>
             <View style={{ width: "100%", gap: 8, marginTop: 18 }}>
               <Button onPress={handleAccept} disabled={isAccepting}>
