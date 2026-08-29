@@ -140,6 +140,8 @@ export default function AssignmentDetailsScreen() {
           <InfoRow label="Monthly Fee" value={`৳ ${assignment.monthlyFee}`} />
           <InfoRow label="Billing Start Date" value={assignment.billingStartDate} />
           <InfoRow label="Vehicle Number" value={assignment.vehicleNumber} />
+          <InfoRow label="Appointment Date" value={assignment.appointmentDate} />
+          <InfoRow label="Appointment Time" value={assignment.appointmentTime} />
         </Card>
 
         <Card>

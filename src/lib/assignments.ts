@@ -29,6 +29,9 @@ export interface RawAssignment {
   present_address: string | null;
   permanent_address: string | null;
   city: string | null;
+  preferred_date: string | null;
+  preferred_time_from: string | null;
+  preferred_time_to: string | null;
 }
 
 export interface AssignmentVehicle {
@@ -87,6 +90,8 @@ export interface DisplayAssignment {
   billingStartDate: string;
   customerMobile: string;
   customerAddress: string;
+  appointmentDate: string;
+  appointmentTime: string;
 }
 
 export function parsePackageDetails(json: string | null | undefined): any {
@@ -143,6 +148,19 @@ export function formatScheduleLabel(value: string | null): string {
   return `${formatDate(value)}, ${time}`;
 }
 
+// preferred_time_from/to come back as plain "HH:MM:SS" strings (a TIME
+// column, no date part) - can't go through `new Date(...)`/formatDate like
+// every other timestamp field here, so it gets its own tiny parser.
+export function formatTime12h(value: string | null): string {
+  if (!value) return "-";
+  const [hStr, mStr] = value.split(":");
+  const h = Number(hStr);
+  if (Number.isNaN(h)) return "-";
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${mStr} ${period}`;
+}
+
 export function toDisplayAssignment(raw: RawAssignment): DisplayAssignment {
   const pkg = parsePackageDetails(raw.package_details);
   const monthlyCharge = Number(pkg.monthly_charge || pkg.annual_charge) || 0;
@@ -165,5 +183,10 @@ export function toDisplayAssignment(raw: RawAssignment): DisplayAssignment {
     customerAddress: [raw.present_address || raw.permanent_address, raw.city]
       .filter(Boolean)
       .join(", "),
+    appointmentDate: formatDate(raw.preferred_date),
+    appointmentTime:
+      raw.preferred_time_from && raw.preferred_time_to
+        ? `${formatTime12h(raw.preferred_time_from)} - ${formatTime12h(raw.preferred_time_to)}`
+        : "-",
   };
 }

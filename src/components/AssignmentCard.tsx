@@ -1,5 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import { MapPin, Clock, ClipboardList } from "lucide-react-native";
+import { MapPin, Clock, ClipboardList, CalendarClock } from "lucide-react-native";
 import { Card } from "./Card";
 import { Badge, type BadgeVariant } from "./Badge";
 import { colors } from "@/theme/colors";
@@ -40,6 +40,15 @@ export function AssignmentCard({
           </View>
           <Text style={styles.name}>{assignment.customerName}</Text>
           <Text style={styles.vehicle}>{assignment.vehicleNumber}</Text>
+          {assignment.appointmentDate !== "-" && (
+            <View style={styles.appointmentRow}>
+              <CalendarClock size={12} color={colors.slate500} />
+              <Text style={styles.appointmentText}>
+                {assignment.appointmentDate}
+                {assignment.appointmentTime !== "-" ? `, ${assignment.appointmentTime}` : ""}
+              </Text>
+            </View>
+          )}
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <MapPin size={12} color={colors.slate400} />
@@ -71,6 +80,8 @@ const styles = StyleSheet.create({
   id: { fontSize: 14, fontWeight: "700", color: colors.slate800 },
   name: { fontSize: 14, fontWeight: "600", color: colors.slate700 },
   vehicle: { fontSize: 12, color: colors.slate500 },
+  appointmentRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  appointmentText: { fontSize: 11, color: colors.slate500 },
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 4 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   metaText: { fontSize: 11, color: colors.slate400 },
