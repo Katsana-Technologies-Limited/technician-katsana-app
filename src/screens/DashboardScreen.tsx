@@ -12,6 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAssignmentsList } from "@/hooks/useAssignments";
 import { toDisplayAssignment } from "@/lib/assignments";
+import { getBDGreeting } from "@/lib/greeting";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
@@ -46,7 +47,7 @@ export default function DashboardScreen() {
               <UserRound size={22} color={colors.brand800} />
             </View>
             <View>
-              <Text style={styles.greetingLabel}>Good Morning,</Text>
+              <Text style={styles.greetingLabel}>{getBDGreeting()}</Text>
               <Text style={styles.greetingName}>{technician?.name ?? "Technician"}</Text>
             </View>
           </View>
