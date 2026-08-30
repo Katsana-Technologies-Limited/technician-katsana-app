@@ -81,6 +81,16 @@ export default function AssignmentDetailsScreen() {
 
   const assignment = toDisplayAssignment(detail.assignment);
 
+  // The list only makes Completed/Cancelled cards un-tappable - that's
+  // cosmetic and does nothing against a deep link straight to this screen,
+  // so the actual gate has to live here: bounce back regardless of how it
+  // was reached once a job is done. Same goBack-during-render pattern the
+  // not-found case above already uses.
+  if (assignment.status === "Completed" || assignment.status === "Cancelled") {
+    navigation.goBack();
+    return null;
+  }
+
   const callCustomer = () => Linking.openURL(`tel:${assignment.customerMobile.replace(/\D/g, "")}`);
   const openDirections = () =>
     Linking.openURL(

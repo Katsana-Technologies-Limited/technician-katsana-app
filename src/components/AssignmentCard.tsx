@@ -22,13 +22,18 @@ export function AssignmentCard({
   // assignment_number instead, since it's the one place a technician needs
   // to tell apart multiple visits for the same subscription.
   displayNumber,
+  // Set by AssignmentsScreen for a Completed/Cancelled row - once a job is
+  // done there's nothing left to open it for, so it's just un-tappable
+  // instead of navigating anywhere - same full-color appearance otherwise.
+  disabled,
 }: {
   assignment: DisplayAssignment;
   onPress: () => void;
   displayNumber?: string;
+  disabled?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress}>
+    <Pressable onPress={onPress} disabled={disabled}>
       <Card style={styles.card}>
         <View style={styles.iconWrap}>
           <ClipboardList size={18} color={colors.brand800} />
@@ -67,6 +72,7 @@ export function AssignmentCard({
 
 const styles = StyleSheet.create({
   card: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
+  cardDisabled: { opacity: 0.6 },
   iconWrap: {
     width: 38,
     height: 38,

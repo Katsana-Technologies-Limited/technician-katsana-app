@@ -80,14 +80,23 @@ export default function AssignmentsScreen() {
         ) : filtered.length === 0 ? (
           <Text style={styles.empty}>No assignments match your filters.</Text>
         ) : (
-          filtered.map((a) => (
-            <AssignmentCard
-              key={a.id}
-              assignment={a}
-              displayNumber={a.assignmentNumber}
-              onPress={() => navigation.navigate("AssignmentDetails", { id: a.id })}
-            />
-          ))
+          filtered.map((a) => {
+            // Once a job is Completed or Cancelled there's nothing left to
+            // do with it - only still-actionable statuses (New, Accepted,
+            // In Progress, Rescheduled) can be opened, so a technician can
+            // always get back in to finish an install they started or
+            // haven't started yet.
+            const isOpenable = a.status !== "Completed" && a.status !== "Cancelled";
+            return (
+              <AssignmentCard
+                key={a.id}
+                assignment={a}
+                displayNumber={a.assignmentNumber}
+                disabled={!isOpenable}
+                onPress={() => navigation.navigate("AssignmentDetails", { id: a.id })}
+              />
+            );
+          })
         )}
       </Screen>
     </View>
