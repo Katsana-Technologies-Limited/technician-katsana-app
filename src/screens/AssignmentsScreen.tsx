@@ -18,6 +18,7 @@ const TABS: Array<{ key: string; label: string; status?: AssignmentStatus }> = [
   { key: "Accepted", label: "Accepted", status: "Accepted" },
   { key: "In Progress", label: "In Progress", status: "In Progress" },
   { key: "Completed", label: "Completed", status: "Completed" },
+  { key: "Cancelled", label: "Cancelled", status: "Cancelled" },
 ];
 
 export default function AssignmentsScreen() {

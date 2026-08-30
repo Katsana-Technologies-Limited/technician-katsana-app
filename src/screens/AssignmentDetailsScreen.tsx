@@ -23,6 +23,8 @@ const STATUS_BADGE: Record<string, BadgeVariant> = {
   Accepted: "accepted",
   "In Progress": "inProgress",
   Completed: "completed",
+  Rescheduled: "rescheduled",
+  Cancelled: "cancelled",
 };
 
 function DetailsSkeleton({ onBack }: { onBack: () => void }) {
@@ -164,7 +166,10 @@ export default function AssignmentDetailsScreen() {
           <Button onPress={() => navigation.navigate("InstallationForm", { id })}>
             Continue
           </Button>
-        ) : assignment.status === "Completed" ? null : (
+        ) : assignment.status === "Completed" || assignment.status === "Cancelled" ? null : (
+          // Anything else not-yet-fully-completed (Accepted, Rescheduled) can
+          // still move forward into the install flow. Completed and
+          // Cancelled are terminal - no further action from here.
           <Button onPress={() => navigation.navigate("InstallationProgress", { id })}>
             Continue
           </Button>
