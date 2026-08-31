@@ -12,6 +12,7 @@ import InstallationCompletedScreen from "@/screens/InstallationCompletedScreen";
 import ProfileScreen from "@/screens/ProfileScreen";
 import ChangePasswordScreen from "@/screens/ChangePasswordScreen";
 import NotificationsScreen from "@/screens/NotificationsScreen";
+import BillCollectionClientDetailScreen from "@/screens/BillCollectionClientDetailScreen";
 import { AppTabs } from "./AppTabs";
 import { navigationRef } from "./navigationRef";
 import type { RootStackParamList } from "./types";
@@ -62,6 +63,10 @@ export default function RootNavigator() {
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen
+              name="BillCollectionClientDetail"
+              component={BillCollectionClientDetailScreen}
+            />
           </>
         )}
       </Stack.Navigator>

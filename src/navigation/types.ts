@@ -12,6 +12,9 @@ export type RootStackParamList = {
   Profile: undefined;
   ChangePassword: undefined;
   Notifications: undefined;
+  // customerId, not an invoice/subscription id - the detail screen shows
+  // every outstanding invoice for one customer, not a single invoice.
+  BillCollectionClientDetail: { customerId: number };
 };
 
 export type TabParamList = {

@@ -176,10 +176,11 @@ export default function AssignmentDetailsScreen() {
           <Button onPress={() => navigation.navigate("InstallationForm", { id })}>
             Continue
           </Button>
-        ) : assignment.status === "Completed" || assignment.status === "Cancelled" ? null : (
+        ) : (
           // Anything else not-yet-fully-completed (Accepted, Rescheduled) can
-          // still move forward into the install flow. Completed and
-          // Cancelled are terminal - no further action from here.
+          // still move forward into the install flow. Completed/Cancelled
+          // never reach this far - the early guard above already bounces
+          // back before render for those.
           <Button onPress={() => navigation.navigate("InstallationProgress", { id })}>
             Continue
           </Button>

@@ -3,19 +3,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Home, CheckCircle2, CreditCard, MoreHorizontal } from "lucide-react-native";
 import DashboardScreen from "@/screens/DashboardScreen";
 import AssignmentsScreen from "@/screens/AssignmentsScreen";
-import { PlaceholderScreen } from "@/screens/PlaceholderScreen";
+import BillCollectionScreen from "@/screens/BillCollectionScreen";
 import SettingsScreen from "@/screens/SettingsScreen";
 import { Sidebar } from "@/components/Sidebar";
-import { SidebarProvider, useSidebar } from "@/context/SidebarContext";
+import { SidebarProvider } from "@/context/SidebarContext";
 import { colors } from "@/theme/colors";
 import type { TabParamList } from "./types";
 
 const Tab = createBottomTabNavigator<TabParamList>();
-
-function BillCollectionScreen() {
-  const { open } = useSidebar();
-  return <PlaceholderScreen title="Bill Collection" onMenuPress={() => open("BillCollection")} />;
-}
 
 function Tabs() {
   // On Android 15+ (edge-to-edge is enforced from targetSdk 35 up), content
