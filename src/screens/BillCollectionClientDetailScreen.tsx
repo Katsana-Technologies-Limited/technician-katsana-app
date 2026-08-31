@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -53,20 +53,27 @@ export default function BillCollectionClientDetailScreen() {
   const { customerId } = route.params;
   const insets = useSafeAreaInsets();
   const { detail, isLoading, refetch } = useBillCollectionClientDetail(customerId);
+  const invoices = useMemo(() => detail?.invoices ?? [], [detail?.invoices]);
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [method, setMethod] = useState<PaymentMethod>("Cash");
   const [collecting, setCollecting] = useState(false);
 
-  // Everything starts selected once the invoices load - matches the
-  // mockup's default state ("Select All" already checked).
-  useEffect(() => {
-    if (detail?.invoices) {
-      setSelectedIds(new Set(detail.invoices.map((inv) => inv.id)));
-    }
-  }, [detail?.invoices]);
+  // Everything starts selected once the invoices load (or reload after a
+  // partial collection) - matches the mockup's default state ("Select All"
+  // already checked). Adjusted during render instead of in an effect (see
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes) -
+  // an effect-based reset commits an extra render pass with the stale
+  // selection before the reset takes effect; this bails out and re-renders
+  // immediately instead.
+  const [selectedForInvoices, setSelectedForInvoices] = useState<
+    BillCollectionInvoice[] | null
+  >(null);
+  if (detail?.invoices && detail.invoices !== selectedForInvoices) {
+    setSelectedForInvoices(detail.invoices);
+    setSelectedIds(new Set(detail.invoices.map((inv) => inv.id)));
+  }
 
-  const invoices = detail?.invoices ?? [];
   const allSelected = invoices.length > 0 && selectedIds.size === invoices.length;
 
   const toggleAll = () => {
