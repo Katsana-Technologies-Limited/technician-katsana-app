@@ -1,8 +1,9 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Home, CheckCircle2, CreditCard, MoreHorizontal } from "lucide-react-native";
+import { Home, CheckCircle2, CreditCard, Wallet, MoreHorizontal } from "lucide-react-native";
 import DashboardScreen from "@/screens/DashboardScreen";
 import AssignmentsScreen from "@/screens/AssignmentsScreen";
+import WalletScreen from "@/screens/WalletScreen";
 import BillCollectionScreen from "@/screens/BillCollectionScreen";
 import SettingsScreen from "@/screens/SettingsScreen";
 import { Sidebar } from "@/components/Sidebar";
@@ -45,6 +46,14 @@ function Tabs() {
         options={{
           tabBarLabel: "Task",
           tabBarIcon: ({ color, size }) => <CheckCircle2 color={color} size={size} />,
+        }}
+      />
+      <Tab.Screen
+        name="Wallet"
+        component={WalletScreen}
+        options={{
+          tabBarLabel: "Wallet",
+          tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} />,
         }}
       />
       <Tab.Screen

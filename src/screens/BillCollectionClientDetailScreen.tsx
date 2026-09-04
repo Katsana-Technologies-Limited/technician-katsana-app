@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { View, Text, Pressable, StyleSheet, Alert, Modal } from "react-native";
+import { WebView } from "react-native-webview";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RouteProp } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Phone, MapPin, CheckSquare, Square, Banknote, Smartphone } from "lucide-react-native";
+import { Phone, MapPin, CheckSquare, Square, Banknote, Smartphone, X } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { TopBar } from "@/components/TopBar";
 import { Card } from "@/components/Card";
@@ -58,6 +59,10 @@ export default function BillCollectionClientDetailScreen() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [method, setMethod] = useState<PaymentMethod>("Cash");
   const [collecting, setCollecting] = useState(false);
+  // Set once a bKash checkout session is created - opens the in-app WebView
+  // modal below and drives the status poll while it's open.
+  const [bkashUrl, setBkashUrl] = useState<string | null>(null);
+  const [pollingTranId, setPollingTranId] = useState<string | null>(null);
 
   // Everything starts selected once the invoices load (or reload after a
   // partial collection) - matches the mockup's default state ("Select All"
@@ -98,15 +103,36 @@ export default function BillCollectionClientDetailScreen() {
       Alert.alert("Select at least one invoice");
       return;
     }
+
+    if (method === "bKash") {
+      setCollecting(true);
+      try {
+        const res = await api.post("/api/technician/bill-collection/collect-bkash", {
+          invoice_ids: Array.from(selectedIds),
+        });
+        const { payment_url, tran_id } = res.data || {};
+        if (!payment_url || !tran_id) {
+          Alert.alert("Collection Failed", "Failed to start bKash checkout");
+          return;
+        }
+        setBkashUrl(payment_url);
+        setPollingTranId(tran_id);
+      } catch (err: any) {
+        Alert.alert("Collection Failed", getErrorMessage(err, "Failed to start bKash checkout"));
+      } finally {
+        setCollecting(false);
+      }
+      return;
+    }
+
     setCollecting(true);
     try {
       const res = await api.post("/api/technician/bill-collection/collect", {
         invoice_ids: Array.from(selectedIds),
-        method,
       });
       Alert.alert(
-        "Payment Collected",
-        res.data?.message || `${formatTaka(selectedTotal)} collected successfully.`,
+        "Added to Wallet",
+        res.data?.message || `${formatTaka(selectedTotal)} added to your wallet.`,
         [{ text: "OK", onPress: () => navigation.goBack() }],
       );
       refetch();
@@ -116,6 +142,35 @@ export default function BillCollectionClientDetailScreen() {
       setCollecting(false);
     }
   };
+
+  // Polls every 3s while the bKash WebView modal below is open - the
+  // customer completes payment inside that WebView, so there's no redirect
+  // back to this screen's own navigation stack to hook into; polling is how
+  // this screen finds out it's done (same approach technician-katsana's web
+  // version uses, since the same constraint applies there too).
+  useEffect(() => {
+    if (!pollingTranId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get("/api/technician/bill-collection/collect-status", {
+          params: { tran_id: pollingTranId },
+        });
+        if (res.data?.status === "PAID") {
+          clearInterval(interval);
+          setPollingTranId(null);
+          setBkashUrl(null);
+          Alert.alert("Payment Received", "Payment received via bKash.", [
+            { text: "OK", onPress: () => navigation.goBack() },
+          ]);
+          refetch();
+        }
+      } catch {
+        // Transient network hiccup - keep polling, next tick will retry.
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pollingTranId]);
 
   if (isLoading || !detail) {
     return (
@@ -253,11 +308,29 @@ export default function BillCollectionClientDetailScreen() {
           onPress={handleCollect}
           loading={collecting}
           disabled={selectedIds.size === 0}
-          icon={<Banknote size={16} color={colors.white} />}
+          icon={
+            method === "bKash" ? (
+              <Smartphone size={16} color={colors.white} />
+            ) : (
+              <Banknote size={16} color={colors.white} />
+            )
+          }
         >
           Collect {formatTaka(selectedTotal)}
         </Button>
       </View>
+
+      <Modal visible={Boolean(bkashUrl)} animationType="slide" onRequestClose={() => setBkashUrl(null)}>
+        <View style={{ flex: 1 }}>
+          <View style={[styles.webviewHeader, { paddingTop: insets.top + 10 }]}>
+            <Text style={styles.webviewTitle}>bKash Payment</Text>
+            <Pressable onPress={() => setBkashUrl(null)} hitSlop={10}>
+              <X size={22} color={colors.slate700} />
+            </Pressable>
+          </View>
+          {bkashUrl && <WebView source={{ uri: bkashUrl }} style={{ flex: 1 }} />}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -340,4 +413,15 @@ const styles = StyleSheet.create({
     borderTopColor: colors.slate200,
     padding: 12,
   },
+  webviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    backgroundColor: colors.white,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.slate200,
+  },
+  webviewTitle: { fontSize: 15, fontWeight: "700", color: colors.slate800 },
 });

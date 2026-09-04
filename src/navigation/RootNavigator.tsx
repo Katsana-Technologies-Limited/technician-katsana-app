@@ -13,6 +13,8 @@ import ProfileScreen from "@/screens/ProfileScreen";
 import ChangePasswordScreen from "@/screens/ChangePasswordScreen";
 import NotificationsScreen from "@/screens/NotificationsScreen";
 import BillCollectionClientDetailScreen from "@/screens/BillCollectionClientDetailScreen";
+import WalletSubmitReviewScreen from "@/screens/WalletSubmitReviewScreen";
+import WalletSubmitSuccessScreen from "@/screens/WalletSubmitSuccessScreen";
 import { AppTabs } from "./AppTabs";
 import { navigationRef } from "./navigationRef";
 import type { RootStackParamList } from "./types";
@@ -67,6 +69,8 @@ export default function RootNavigator() {
               name="BillCollectionClientDetail"
               component={BillCollectionClientDetailScreen}
             />
+            <Stack.Screen name="WalletSubmitReview" component={WalletSubmitReviewScreen} />
+            <Stack.Screen name="WalletSubmitSuccess" component={WalletSubmitSuccessScreen} />
           </>
         )}
       </Stack.Navigator>
