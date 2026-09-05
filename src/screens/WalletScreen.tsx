@@ -188,7 +188,9 @@ const styles = StyleSheet.create({
   submitLabel: { fontSize: 11, color: colors.slate500 },
   submitAmount: { fontSize: 18, fontWeight: "800", color: colors.slate800, marginTop: 2 },
   submitSub: { fontSize: 10.5, color: colors.slate400, marginTop: 2 },
-  submitButton: { paddingHorizontal: 16 },
+  // Overridden here only, not on the shared Button component's own
+  // default (13), which applies to buttons app-wide.
+  submitButton: { paddingHorizontal: 16, paddingVertical: 8 },
   statsRow: { flexDirection: "row", gap: 8 },
   statCard: { flex: 1, gap: 3, padding: 12, alignItems: "center" },
   statIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", marginBottom: 2 },

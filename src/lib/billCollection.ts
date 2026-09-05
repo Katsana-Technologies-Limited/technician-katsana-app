@@ -6,12 +6,21 @@
 // installation dispatch already uses.
 
 export type DueStatus = "Overdue" | "Due Soon" | "Current";
+// "Collected" isn't a due-date state - it means every outstanding invoice
+// shown for this client is already sitting in the technician's wallet (or
+// already submitted), awaiting CRM approval. Still listed (unchanged), but
+// not enterable again until that resolves.
+export type BillCollectionStatus = DueStatus | "Collected";
 
 // DueStatus -> Badge.tsx's BadgeVariant naming (no spaces, camelCase).
-export const DUE_STATUS_BADGE: Record<DueStatus, "overdue" | "dueSoon" | "current"> = {
+export const DUE_STATUS_BADGE: Record<
+  BillCollectionStatus,
+  "overdue" | "dueSoon" | "current" | "collected"
+> = {
   Overdue: "overdue",
   "Due Soon": "dueSoon",
   Current: "current",
+  Collected: "collected",
 };
 
 export interface BillCollectionClient {
@@ -21,7 +30,8 @@ export interface BillCollectionClient {
   city: string | null;
   outstanding: number;
   invoice_count: number;
-  status: DueStatus;
+  status: BillCollectionStatus;
+  collected: boolean;
 }
 
 export interface BillCollectionInvoice {
@@ -31,6 +41,7 @@ export interface BillCollectionInvoice {
   due_date: string | null;
   amount: number;
   status: DueStatus;
+  already_collected: boolean;
 }
 
 export interface BillCollectionClientDetail {

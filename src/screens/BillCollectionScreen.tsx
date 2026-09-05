@@ -34,8 +34,13 @@ function ClientCard({
   onPress: () => void;
 }) {
   const avatarColor = AVATAR_COLORS[colorIndex % AVATAR_COLORS.length];
+  // Already collected (awaiting CRM approval) - not enterable again until
+  // that's resolved, so there's nothing to do inside the detail screen for
+  // this client right now. No dimming/opacity change though - same as a
+  // Completed card on the Assignments screen, which only changes
+  // pressability, never the card's own appearance.
   return (
-    <Pressable onPress={onPress}>
+    <Pressable onPress={client.collected ? undefined : onPress}>
       <Card style={styles.clientCard}>
         <View style={[styles.avatar, { backgroundColor: avatarColor.bg }]}>
           <Text style={[styles.avatarText, { color: avatarColor.fg }]}>
@@ -55,7 +60,7 @@ function ClientCard({
         <View style={styles.clientRight}>
           <View style={styles.amountRow}>
             <Text style={styles.amount}>{formatTaka(client.outstanding)}</Text>
-            <ChevronRight size={16} color={colors.slate300} />
+            {!client.collected && <ChevronRight size={16} color={colors.slate300} />}
           </View>
           <Text style={styles.invoiceCount}>
             {client.invoice_count} Invoice{client.invoice_count === 1 ? "" : "s"}

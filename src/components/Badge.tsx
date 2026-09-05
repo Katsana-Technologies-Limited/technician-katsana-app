@@ -14,7 +14,10 @@ export type BadgeVariant =
   // vocabulary shown on a different screen.
   | "overdue"
   | "dueSoon"
-  | "current";
+  | "current"
+  // Not a due-date state - every outstanding invoice for this client is
+  // already collected (wallet/pending approval), awaiting CRM approval.
+  | "collected";
 
 const VARIANTS: Record<BadgeVariant, { bg: string; fg: string }> = {
   new: { bg: colors.sky100, fg: colors.sky600 },
@@ -26,6 +29,7 @@ const VARIANTS: Record<BadgeVariant, { bg: string; fg: string }> = {
   overdue: { bg: colors.rose100, fg: colors.rose600 },
   dueSoon: { bg: colors.amber100, fg: colors.amber600 },
   current: { bg: colors.emerald100, fg: colors.emerald600 },
+  collected: { bg: colors.sky100, fg: colors.sky600 },
 };
 
 export function Badge({
