@@ -3,7 +3,7 @@ import { View, Text, Image, Pressable, StyleSheet, Animated } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Home, CheckCircle2, CreditCard, X, LogOut } from "lucide-react-native";
+import { Home, CheckCircle2, CreditCard, Wallet, X, LogOut } from "lucide-react-native";
 import { useSidebar, type SidebarRoute } from "@/context/SidebarContext";
 import { useAuth } from "@/context/AuthContext";
 import { colors } from "@/theme/colors";
@@ -11,9 +11,11 @@ import type { RootStackParamList } from "@/navigation/types";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
+// Same set + order as technician-katsana (web)'s TechnicianShell NAV_ITEMS.
 const NAV_ITEMS: Array<{ key: SidebarRoute; label: string; icon: typeof Home }> = [
   { key: "Home", label: "Home", icon: Home },
   { key: "Assignments", label: "Task", icon: CheckCircle2 },
+  { key: "Wallet", label: "Wallet", icon: Wallet },
   { key: "BillCollection", label: "Bill Collection", icon: CreditCard },
 ];
 
@@ -42,7 +44,7 @@ export function Sidebar() {
     ]).start();
   }, [visible, translateX, backdropOpacity]);
 
-  const goToTab = (screen: "Home" | "Assignments" | "BillCollection") => {
+  const goToTab = (screen: SidebarRoute) => {
     close();
     navigation.navigate("Tabs", { screen } as never);
   };
@@ -80,7 +82,7 @@ export function Sidebar() {
             return (
               <Pressable
                 key={key}
-                onPress={() => goToTab(key as "Home" | "Assignments" | "BillCollection")}
+                onPress={() => goToTab(key)}
                 style={[styles.navItem, active && styles.navItemActive]}
               >
                 <Icon size={18} color={active ? colors.white : colors.slate600} />
