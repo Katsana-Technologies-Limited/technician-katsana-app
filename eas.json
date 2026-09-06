@@ -9,6 +9,9 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://core.katsana.com.bd"
       }
     },
     "preview": {
@@ -17,13 +20,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.katsana.com.bd"
+        "EXPO_PUBLIC_API_URL": "https://core.katsana.com.bd"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.katsana.com.bd"
+        "EXPO_PUBLIC_API_URL": "https://core.katsana.com.bd"
       }
     }
   },

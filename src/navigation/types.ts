@@ -17,6 +17,18 @@ export type RootStackParamList = {
   // customerId, not an invoice/subscription id - the detail screen shows
   // every outstanding invoice for one customer, not a single invoice.
   BillCollectionClientDetail: { customerId: number };
+  // Full-screen success/failure result after a collect attempt (Cash or
+  // bKash) - a big tickmark page instead of a bare Alert.
+  BillCollectionResult: {
+    status: "success" | "error";
+    method?: "Cash" | "bKash";
+    amount?: number;
+    customerName?: string;
+    customerId?: number;
+    invoiceCount?: number;
+    // success: the backend's own note; error: the failure reason.
+    message?: string;
+  };
   WalletSubmitReview: undefined;
   // Passed straight through from POST /wallet/submit's response so the
   // success screen doesn't need a second round trip just to redisplay what

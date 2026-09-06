@@ -53,7 +53,7 @@ export default function BillCollectionClientDetailScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "BillCollectionClientDetail">>();
   const { customerId } = route.params;
   const insets = useSafeAreaInsets();
-  const { detail, isLoading, refetch } = useBillCollectionClientDetail(customerId);
+  const { detail, isLoading } = useBillCollectionClientDetail(customerId);
   const invoices = useMemo(() => detail?.invoices ?? [], [detail?.invoices]);
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -63,6 +63,13 @@ export default function BillCollectionClientDetailScreen() {
   // modal below and drives the status poll while it's open.
   const [bkashUrl, setBkashUrl] = useState<string | null>(null);
   const [pollingTranId, setPollingTranId] = useState<string | null>(null);
+  // Amount + invoice count captured when the bKash checkout starts, so the
+  // result screen shows what was actually charged even if the technician
+  // toggled invoices while the customer was paying.
+  const [bkashCtx, setBkashCtx] = useState<{
+    amount: number;
+    invoiceCount: number;
+  } | null>(null);
 
   // Everything starts selected once the invoices load (or reload after a
   // partial collection) - matches the mockup's default state ("Select All"
@@ -112,13 +119,22 @@ export default function BillCollectionClientDetailScreen() {
         });
         const { payment_url, tran_id } = res.data || {};
         if (!payment_url || !tran_id) {
-          Alert.alert("Collection Failed", "Failed to start bKash checkout");
+          navigation.navigate("BillCollectionResult", {
+            status: "error",
+            customerId,
+            message: "Could not start the bKash checkout. Please try again.",
+          });
           return;
         }
+        setBkashCtx({ amount: selectedTotal, invoiceCount: selectedIds.size });
         setBkashUrl(payment_url);
         setPollingTranId(tran_id);
       } catch (err: any) {
-        Alert.alert("Collection Failed", getErrorMessage(err, "Failed to start bKash checkout"));
+        navigation.navigate("BillCollectionResult", {
+          status: "error",
+          customerId,
+          message: getErrorMessage(err, "Failed to start bKash checkout"),
+        });
       } finally {
         setCollecting(false);
       }
@@ -130,44 +146,90 @@ export default function BillCollectionClientDetailScreen() {
       const res = await api.post("/api/technician/bill-collection/collect", {
         invoice_ids: Array.from(selectedIds),
       });
-      Alert.alert(
-        "Added to Wallet",
-        res.data?.message || `${formatTaka(selectedTotal)} added to your wallet.`,
-        [{ text: "OK", onPress: () => navigation.goBack() }],
-      );
-      refetch();
+      navigation.navigate("BillCollectionResult", {
+        status: "success",
+        method: "Cash",
+        amount: selectedTotal,
+        invoiceCount: selectedIds.size,
+        customerName: detail?.customer?.name,
+        customerId,
+        message:
+          res.data?.message ||
+          `${formatTaka(selectedTotal)} added to your wallet`,
+      });
     } catch (err: any) {
-      Alert.alert("Collection Failed", getErrorMessage(err, "Failed to collect payment"));
+      navigation.navigate("BillCollectionResult", {
+        status: "error",
+        customerId,
+        message: getErrorMessage(err, "Failed to collect payment"),
+      });
     } finally {
       setCollecting(false);
     }
   };
 
-  // Polls every 3s while the bKash WebView modal below is open - the
-  // customer completes payment inside that WebView, so there's no redirect
-  // back to this screen's own navigation stack to hook into; polling is how
-  // this screen finds out it's done (same approach technician-katsana's web
-  // version uses, since the same constraint applies there too).
+  const bkashSuccess = () => {
+    setPollingTranId(null);
+    setBkashUrl(null);
+    navigation.navigate("BillCollectionResult", {
+      status: "success",
+      method: "bKash",
+      amount: bkashCtx?.amount,
+      invoiceCount: bkashCtx?.invoiceCount,
+      customerName: detail?.customer?.name,
+      customerId,
+      message: "Added to your wallet - submit to Accounts to get it marked Paid",
+    });
+  };
+  const bkashFailed = (message: string) => {
+    setPollingTranId(null);
+    setBkashUrl(null);
+    navigation.navigate("BillCollectionResult", {
+      status: "error",
+      customerId,
+      message,
+    });
+  };
+
+  // The bKash checkout runs inside the WebView modal below. bKash redirects
+  // to the backend callback when done, which then redirects again to one of
+  // payment-katsana's own result pages - watching the WebView's URL for
+  // those is the fastest, and (for a failed/cancelled payment) the ONLY
+  // signal, since the status poll only ever confirms a genuine PAID.
+  const handleWebViewNav = (url: string | undefined) => {
+    if (!url) return;
+    if (/\/payment-success\b/.test(url)) {
+      // Let the poll do the authoritative confirm (a payment_records row
+      // must exist) - just kick it immediately instead of waiting up to 3s.
+      void pollBkashOnce();
+    } else if (/\/payment-(failed|cancelled|error)\b/.test(url)) {
+      bkashFailed(
+        /cancelled/.test(url)
+          ? "The bKash payment was cancelled."
+          : "The bKash payment did not go through. No money has been collected.",
+      );
+    }
+  };
+
+  const pollBkashOnce = async () => {
+    if (!pollingTranId) return;
+    try {
+      const res = await api.get(
+        "/api/technician/bill-collection/collect-status",
+        { params: { tran_id: pollingTranId } },
+      );
+      if (res.data?.status === "PAID") bkashSuccess();
+    } catch {
+      // ignore - the interval below will retry
+    }
+  };
+
+  // Polls every 3s while the bKash WebView modal is open - a genuine PAID is
+  // confirmed by a payment_records row on the backend, not by the WebView's
+  // URL alone.
   useEffect(() => {
     if (!pollingTranId) return;
-    const interval = setInterval(async () => {
-      try {
-        const res = await api.get("/api/technician/bill-collection/collect-status", {
-          params: { tran_id: pollingTranId },
-        });
-        if (res.data?.status === "PAID") {
-          clearInterval(interval);
-          setPollingTranId(null);
-          setBkashUrl(null);
-          Alert.alert("Payment Received", "Payment received via bKash.", [
-            { text: "OK", onPress: () => navigation.goBack() },
-          ]);
-          refetch();
-        }
-      } catch {
-        // Transient network hiccup - keep polling, next tick will retry.
-      }
-    }, 3000);
+    const interval = setInterval(pollBkashOnce, 3000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pollingTranId]);
@@ -320,15 +382,43 @@ export default function BillCollectionClientDetailScreen() {
         </Button>
       </View>
 
-      <Modal visible={Boolean(bkashUrl)} animationType="slide" onRequestClose={() => setBkashUrl(null)}>
+      <Modal
+        visible={Boolean(bkashUrl)}
+        animationType="slide"
+        onRequestClose={() => {
+          setBkashUrl(null);
+          setPollingTranId(null);
+        }}
+      >
         <View style={{ flex: 1 }}>
           <View style={[styles.webviewHeader, { paddingTop: insets.top + 10 }]}>
             <Text style={styles.webviewTitle}>bKash Payment</Text>
-            <Pressable onPress={() => setBkashUrl(null)} hitSlop={10}>
+            <Pressable
+              onPress={() => {
+                setBkashUrl(null);
+                setPollingTranId(null);
+              }}
+              hitSlop={10}
+            >
               <X size={22} color={colors.slate700} />
             </Pressable>
           </View>
-          {bkashUrl && <WebView source={{ uri: bkashUrl }} style={{ flex: 1 }} />}
+          {bkashUrl && (
+            <WebView
+              source={{ uri: bkashUrl }}
+              style={{ flex: 1 }}
+              originWhitelist={["*"]}
+              javaScriptEnabled
+              domStorageEnabled
+              thirdPartyCookiesEnabled
+              sharedCookiesEnabled
+              setSupportMultipleWindows={false}
+              startInLoadingState
+              onNavigationStateChange={(navState) =>
+                handleWebViewNav(navState.url)
+              }
+            />
+          )}
         </View>
       </Modal>
     </View>
