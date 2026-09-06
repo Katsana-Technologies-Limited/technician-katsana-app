@@ -62,11 +62,11 @@
         }
       ]
     ],
+    "owner": "momin-hossain-mbstus-team",
     "extra": {
       "eas": {
-        "projectId": "ba4eab50-6d58-4e21-b011-eb10ad7588a2"
+        "projectId": "83fc1247-fce8-4eeb-9f55-92ed2bdc2b88"
       }
-    },
-    "owner": "mominhossainmbstus-team"
+    }
   }
 }
