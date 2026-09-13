@@ -9,10 +9,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.katsanatech.technician"
+      "bundleIdentifier": "com.katsana.fieldforce"
     },
     "android": {
-      "package": "com.katsanatech.technician",
+      "package": "com.katsana.fieldforce",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0d3b3d",
