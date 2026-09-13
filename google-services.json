@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:899638842286:android:72b8469a5695fe8ee7ae3f",
+        "android_client_info": {
+          "package_name": "com.katsana.fieldforce"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgMe35HqWbu-UNz0o0uXY-sYYWwynvJgE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:899638842286:android:b854750c28a7a015e7ae3f",
         "android_client_info": {
           "package_name": "com.katsanatech.technician"
