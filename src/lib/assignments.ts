@@ -32,6 +32,9 @@ export interface RawAssignment {
   preferred_date: string | null;
   preferred_time_from: string | null;
   preferred_time_to: string | null;
+  // Handover submitted but the install isn't Completed yet because the device
+  // couldn't be confirmed on Speedotrack - show "not added" + Retry.
+  speedotrack_pending?: number | boolean | null;
 }
 
 export interface AssignmentVehicle {
@@ -92,6 +95,7 @@ export interface DisplayAssignment {
   customerAddress: string;
   appointmentDate: string;
   appointmentTime: string;
+  speedotrackPending: boolean;
 }
 
 export function parsePackageDetails(json: string | null | undefined): any {
@@ -188,5 +192,6 @@ export function toDisplayAssignment(raw: RawAssignment): DisplayAssignment {
       raw.preferred_time_from && raw.preferred_time_to
         ? `${formatTime12h(raw.preferred_time_from)} - ${formatTime12h(raw.preferred_time_to)}`
         : "-",
+    speedotrackPending: Boolean(raw.speedotrack_pending),
   };
 }

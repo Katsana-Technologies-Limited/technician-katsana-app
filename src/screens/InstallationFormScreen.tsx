@@ -40,6 +40,13 @@ export default function InstallationFormScreen() {
   const signaturePadRef = useRef<SignaturePadHandle>(null);
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
+  // The handover was submitted but the backend could not confirm the device on
+  // Speedotrack, so the install is NOT completed - either from this session's
+  // failed attempt, or already saved on the server from an earlier one (comes
+  // back on the assignment itself, so it survives closing the app).
+  const [speedotrackFailed, setSpeedotrackFailed] = useState(false);
+  const speedotrackPending =
+    speedotrackFailed || Boolean(detail?.assignment?.speedotrack_pending);
   // Locks the outer Screen ScrollView while a finger is actively drawing on
   // the signature pad - see the note in Screen.tsx.
   const [signatureDrawing, setSignatureDrawing] = useState(false);
@@ -296,22 +303,38 @@ export default function InstallationFormScreen() {
 
   const handleComplete = async () => {
     const signatureData = signaturePadRef.current?.getDataUrl();
-    if (!prefilledMobile?.trim() || !signatureData || !handover.photo) {
+    const hasFreshHandover = Boolean(
+      prefilledMobile?.trim() && signatureData && handover.photo,
+    );
+    // A Retry after "not added to Speedotrack" doesn't need the signature/photo
+    // again - the server kept the handover data from the first attempt.
+    if (!hasFreshHandover && !speedotrackPending) {
       Alert.alert("Signature and photo are required");
       return;
     }
     setIsSaving(true);
     try {
-      await api.post(`/api/technician/assignments/${id}/complete`, {
-        customer_mobile: prefilledMobile.trim(),
-        otp_verified: true,
-        signature_data: signatureData,
-        customer_photo: handover.photo,
-        remarks: handover.remarks.trim() || null,
-        send_sms: handover.sendSms,
-      });
+      // The server waits for Speedotrack to confirm the device (up to ~45s if it
+      // is slow) before it marks the install completed, so this can take a while.
+      await api.post(
+        `/api/technician/assignments/${id}/complete`,
+        hasFreshHandover
+          ? {
+              customer_mobile: prefilledMobile!.trim(),
+              otp_verified: true,
+              signature_data: signatureData,
+              customer_photo: handover.photo,
+              remarks: handover.remarks.trim() || null,
+              send_sms: handover.sendSms,
+            }
+          : { send_sms: handover.sendSms },
+      );
+      setSpeedotrackFailed(false);
       navigation.navigate("InstallationCompleted", { id });
     } catch (err: any) {
+      if (err?.response?.data?.code === "SPEEDOTRACK_NOT_ADDED") {
+        setSpeedotrackFailed(true);
+      }
       Alert.alert(getErrorMessage(err, "Failed to complete installation"));
     } finally {
       setIsSaving(false);
@@ -468,6 +491,19 @@ export default function InstallationFormScreen() {
               <>
                 <Text style={styles.stepTitle}>Customer Confirmation</Text>
 
+                {speedotrackPending && (
+                  <View style={styles.speedotrackBanner}>
+                    <Text style={styles.speedotrackBannerTitle}>
+                      Not added to Speedotrack
+                    </Text>
+                    <Text style={styles.speedotrackBannerText}>
+                      The installation is not completed yet because the device
+                      could not be confirmed on Speedotrack. Tap Retry to check
+                      again - you don't need to sign or take the photo again.
+                    </Text>
+                  </View>
+                )}
+
                 <View style={{ gap: 6 }}>
                   <Text style={styles.label}>
                     Customer Mobile Number <Text style={{ color: colors.rose500 }}>*</Text>
@@ -547,7 +583,11 @@ export default function InstallationFormScreen() {
           </Button>
         ) : (
           <Button onPress={handleComplete} style={{ flex: 1 }} disabled={isSaving}>
-            {isSaving ? "Completing..." : "Complete Installation"}
+            {isSaving
+              ? "Adding to Speedotrack..."
+              : speedotrackPending
+                ? "Retry"
+                : "Complete Installation"}
           </Button>
         )}
       </View>
@@ -559,6 +599,16 @@ export default function InstallationFormScreen() {
 const styles = StyleSheet.create({
   stepTitle: { fontSize: 15, fontWeight: "700", color: colors.slate800 },
   smsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  speedotrackBanner: {
+    backgroundColor: "#fff1f2",
+    borderColor: "#fecdd3",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    gap: 4,
+  },
+  speedotrackBannerTitle: { fontSize: 14, fontWeight: "700", color: colors.rose600 },
+  speedotrackBannerText: { fontSize: 13, color: colors.rose600, lineHeight: 18 },
   smsLabel: { fontSize: 13, fontWeight: "500", color: colors.slate700, flex: 1 },
   hint: { fontSize: 11, color: colors.slate400, marginTop: -8 },
   label: { fontSize: 13, fontWeight: "500", color: colors.slate700 },

@@ -45,6 +45,11 @@ export function AssignmentCard({
           </View>
           <Text style={styles.name}>{assignment.customerName}</Text>
           <Text style={styles.vehicle}>{assignment.vehicleNumber}</Text>
+          {assignment.speedotrackPending && (
+            <Text style={styles.speedotrackText}>
+              Not added to Speedotrack - open to retry
+            </Text>
+          )}
           {assignment.appointmentDate !== "-" && (
             <View style={styles.appointmentRow}>
               <CalendarClock size={12} color={colors.slate500} />
@@ -86,6 +91,7 @@ const styles = StyleSheet.create({
   id: { fontSize: 14, fontWeight: "700", color: colors.slate800 },
   name: { fontSize: 14, fontWeight: "600", color: colors.slate700 },
   vehicle: { fontSize: 12, color: colors.slate500 },
+  speedotrackText: { fontSize: 12, fontWeight: "700", color: colors.rose600, marginTop: 2 },
   appointmentRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   appointmentText: { fontSize: 11, color: colors.slate500 },
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 4 },
