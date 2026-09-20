@@ -174,7 +174,7 @@ export default function AssignmentDetailsScreen() {
           // Already past Start Installation - go straight into the wizard,
           // which resumes at whichever step was last saved.
           <Button onPress={() => navigation.navigate("InstallationForm", { id })}>
-            Continue
+            {assignment.speedotrackPending ? "Retry Speedotrack" : "Continue"}
           </Button>
         ) : (
           // Anything else not-yet-fully-completed (Accepted, Rescheduled) can
