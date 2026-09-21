@@ -45,6 +45,27 @@ export function AssignmentCard({
           </View>
           <Text style={styles.name}>{assignment.customerName}</Text>
           <Text style={styles.vehicle}>{assignment.vehicleNumber}</Text>
+          <View style={styles.detailBlock}>
+            {/* The title already IS the subscription number on cards that
+                don't override displayNumber (e.g. the dashboard) - only add
+                the line where the title is something else (the task list
+                shows the assignment number). */}
+            {displayNumber && displayNumber !== assignment.subscriptionNumber && (
+              <Text style={styles.detailText}>
+                Subscription: <Text style={styles.detailValue}>{assignment.subscriptionNumber}</Text>
+              </Text>
+            )}
+            {assignment.deviceImei !== "-" && (
+              <Text style={styles.detailText}>
+                IMEI: <Text style={styles.detailValue}>{assignment.deviceImei}</Text>
+              </Text>
+            )}
+            {assignment.simNumber !== "-" && (
+              <Text style={styles.detailText}>
+                SIM: <Text style={styles.detailValue}>{assignment.simNumber}</Text>
+              </Text>
+            )}
+          </View>
           {assignment.speedotrackPending && (
             <Text style={styles.speedotrackText}>
               Not added to Speedotrack - open to retry
@@ -91,6 +112,9 @@ const styles = StyleSheet.create({
   id: { fontSize: 14, fontWeight: "700", color: colors.slate800 },
   name: { fontSize: 14, fontWeight: "600", color: colors.slate700 },
   vehicle: { fontSize: 12, color: colors.slate500 },
+  detailBlock: { gap: 1, marginTop: 2 },
+  detailText: { fontSize: 12, color: colors.slate500 },
+  detailValue: { fontWeight: "600", color: colors.slate700 },
   speedotrackText: { fontSize: 12, fontWeight: "700", color: colors.rose600, marginTop: 2 },
   appointmentRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   appointmentText: { fontSize: 11, color: colors.slate500 },

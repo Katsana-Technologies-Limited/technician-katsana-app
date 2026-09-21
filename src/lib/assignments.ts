@@ -35,6 +35,9 @@ export interface RawAssignment {
   // Handover submitted but the install isn't Completed yet because the device
   // couldn't be confirmed on Speedotrack - show "not added" + Retry.
   speedotrack_pending?: number | boolean | null;
+  // The subscription's device IMEI / SIM number (task cards show both).
+  device_imei?: string | null;
+  sim_number?: string | null;
 }
 
 export interface AssignmentVehicle {
@@ -96,6 +99,8 @@ export interface DisplayAssignment {
   appointmentDate: string;
   appointmentTime: string;
   speedotrackPending: boolean;
+  deviceImei: string;
+  simNumber: string;
 }
 
 export function parsePackageDetails(json: string | null | undefined): any {
@@ -193,5 +198,7 @@ export function toDisplayAssignment(raw: RawAssignment): DisplayAssignment {
         ? `${formatTime12h(raw.preferred_time_from)} - ${formatTime12h(raw.preferred_time_to)}`
         : "-",
     speedotrackPending: Boolean(raw.speedotrack_pending),
+    deviceImei: raw.device_imei || "-",
+    simNumber: raw.sim_number || "-",
   };
 }

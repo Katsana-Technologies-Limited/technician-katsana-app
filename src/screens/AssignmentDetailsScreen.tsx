@@ -148,6 +148,8 @@ export default function AssignmentDetailsScreen() {
         <Card>
           <Text style={styles.cardTitle}>Subscription Information</Text>
           <InfoRow label="Subscription No" value={assignment.subscriptionNumber} />
+          <InfoRow label="Device IMEI" value={assignment.deviceImei} />
+          <InfoRow label="SIM Number" value={assignment.simNumber} />
           <InfoRow label="Package" value={assignment.packageName} />
           <InfoRow label="Monthly Fee" value={`৳ ${assignment.monthlyFee}`} />
           <InfoRow label="Billing Start Date" value={assignment.billingStartDate} />
