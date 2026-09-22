@@ -6,6 +6,7 @@ import { Screen } from "@/components/Screen";
 import { TopBar } from "@/components/TopBar";
 import { Input } from "@/components/Input";
 import { AssignmentCard } from "@/components/AssignmentCard";
+import { AssignmentCardSkeleton } from "@/components/AssignmentCardSkeleton";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAssignmentsList } from "@/hooks/useAssignments";
 import { toDisplayAssignment, type AssignmentStatus } from "@/lib/assignments";
@@ -76,7 +77,7 @@ export default function AssignmentsScreen() {
         </View>
 
         {isLoading ? (
-          <Text style={styles.empty}>Loading assignments...</Text>
+          Array.from({ length: 5 }).map((_, i) => <AssignmentCardSkeleton key={i} />)
         ) : filtered.length === 0 ? (
           <Text style={styles.empty}>No assignments match your filters.</Text>
         ) : (

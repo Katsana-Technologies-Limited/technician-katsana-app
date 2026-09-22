@@ -8,6 +8,8 @@ import { Card } from "@/components/Card";
 import { Badge } from "@/components/Badge";
 import { HistoryStatTile } from "@/components/HistoryStatTile";
 import { AssignmentCard } from "@/components/AssignmentCard";
+import { AssignmentCardSkeleton } from "@/components/AssignmentCardSkeleton";
+import { Skeleton } from "@/components/Skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAssignmentsList } from "@/hooks/useAssignments";
@@ -63,16 +65,25 @@ export default function DashboardScreen() {
             </View>
           </View>
           <View style={styles.tileRow}>
-            <HistoryStatTile
-              value={isLoading ? 0 : pendingAssignments.length}
-              label="Pending Task"
-              color={colors.rose500}
-            />
-            <HistoryStatTile
-              value={isLoading ? 0 : completedCount}
-              label="Completed Task"
-              color={colors.emerald500}
-            />
+            {isLoading ? (
+              <>
+                <Skeleton style={styles.tileSkeleton} />
+                <Skeleton style={styles.tileSkeleton} />
+              </>
+            ) : (
+              <>
+                <HistoryStatTile
+                  value={pendingAssignments.length}
+                  label="Pending Task"
+                  color={colors.rose500}
+                />
+                <HistoryStatTile
+                  value={completedCount}
+                  label="Completed Task"
+                  color={colors.emerald500}
+                />
+              </>
+            )}
           </View>
         </Card>
 
@@ -100,7 +111,9 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
-        {!isLoading && pendingAssignments.length === 0 && (
+        {isLoading ? (
+          Array.from({ length: 2 }).map((_, i) => <AssignmentCardSkeleton key={i} />)
+        ) : pendingAssignments.length === 0 ? (
           <Card style={styles.emptyCard}>
             <View style={styles.emptyIconWrap}>
               <FileText size={26} color={colors.brand600} />
@@ -110,15 +123,15 @@ export default function DashboardScreen() {
               No pending tasks. We'll notify you when an admin assigns one.
             </Text>
           </Card>
+        ) : (
+          pendingAssignments.map((a) => (
+            <AssignmentCard
+              key={a.id}
+              assignment={a}
+              onPress={() => navigation.navigate("AssignmentDetails", { id: a.id })}
+            />
+          ))
         )}
-
-        {pendingAssignments.map((a) => (
-          <AssignmentCard
-            key={a.id}
-            assignment={a}
-            onPress={() => navigation.navigate("AssignmentDetails", { id: a.id })}
-          />
-        ))}
       </Screen>
     </View>
   );
@@ -151,6 +164,7 @@ const styles = StyleSheet.create({
   },
   filterText: { fontSize: 12, fontWeight: "600", color: colors.slate600 },
   tileRow: { flexDirection: "row", gap: 10 },
+  tileSkeleton: { flex: 1, height: 66, borderRadius: 14 },
   sectionTitle: { fontSize: 14, fontWeight: "700", color: colors.slate700 },
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   link: { fontSize: 12, fontWeight: "600", color: colors.brand700 },
