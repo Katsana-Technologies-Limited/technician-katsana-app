@@ -12,6 +12,8 @@ import { formatTaka } from "@/lib/billCollection";
 import type { WalletTransaction } from "@/lib/wallet";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
+import { Skeleton } from "@/components/Skeleton";
+import { TransactionSkeleton } from "@/components/PageSkeletons";
 
 const TRANSACTION_STYLE: Record<
   WalletTransaction["type"],
@@ -49,9 +51,11 @@ export default function WalletScreen() {
             <Text style={styles.heroTitle}>Wallet Balance</Text>
             <Eye size={14} color={colors.brand100} />
           </View>
-          <Text style={styles.heroBalance}>
-            {summaryLoading ? "-" : formatTaka(summary.balance)}
-          </Text>
+          {summaryLoading ? (
+            <Skeleton style={{ width: 140, height: 30, marginVertical: 4, backgroundColor: "rgba(255,255,255,0.3)" }} />
+          ) : (
+            <Text style={styles.heroBalance}>{formatTaka(summary.balance)}</Text>
+          )}
           <Text style={styles.heroSub}>In your wallet</Text>
 
           <View style={styles.heroNotice}>
@@ -66,9 +70,11 @@ export default function WalletScreen() {
         <Card style={styles.submitCard}>
           <View style={{ flex: 1 }}>
             <Text style={styles.submitLabel}>Amount to Submit</Text>
-            <Text style={styles.submitAmount}>
-              {summaryLoading ? "-" : formatTaka(summary.balance)}
-            </Text>
+            {summaryLoading ? (
+              <Skeleton style={{ width: 100, height: 20, marginVertical: 3 }} />
+            ) : (
+              <Text style={styles.submitAmount}>{formatTaka(summary.balance)}</Text>
+            )}
             <Text style={styles.submitSub}>
               This amount will be submitted to Accounts for client invoice payment
             </Text>
@@ -89,9 +95,11 @@ export default function WalletScreen() {
             <View style={[styles.statIcon, { backgroundColor: "#dbeafe" }]}>
               <Coins size={16} color="#2563eb" />
             </View>
-            <Text style={styles.statValue}>
-              {summaryLoading ? "-" : formatTaka(summary.totalCollected)}
-            </Text>
+            {summaryLoading ? (
+              <Skeleton style={{ width: 64, height: 16, marginVertical: 3 }} />
+            ) : (
+              <Text style={styles.statValue}>{formatTaka(summary.totalCollected)}</Text>
+            )}
             <Text style={styles.statLabel}>Total Collected</Text>
             <Text style={styles.statSub}>All time</Text>
           </Card>
@@ -99,9 +107,11 @@ export default function WalletScreen() {
             <View style={[styles.statIcon, { backgroundColor: colors.amber100 }]}>
               <WalletIcon size={16} color={colors.amber600} />
             </View>
-            <Text style={styles.statValue}>
-              {summaryLoading ? "-" : formatTaka(summary.balance)}
-            </Text>
+            {summaryLoading ? (
+              <Skeleton style={{ width: 64, height: 16, marginVertical: 3 }} />
+            ) : (
+              <Text style={styles.statValue}>{formatTaka(summary.balance)}</Text>
+            )}
             <Text style={styles.statLabel}>In Wallet</Text>
             <Text style={styles.statSub}>Not submitted</Text>
           </Card>
@@ -109,9 +119,11 @@ export default function WalletScreen() {
             <View style={[styles.statIcon, { backgroundColor: colors.emerald100 }]}>
               <FileCheck size={16} color={colors.emerald600} />
             </View>
-            <Text style={styles.statValue}>
-              {summaryLoading ? "-" : formatTaka(summary.submittedThisMonth)}
-            </Text>
+            {summaryLoading ? (
+              <Skeleton style={{ width: 64, height: 16, marginVertical: 3 }} />
+            ) : (
+              <Text style={styles.statValue}>{formatTaka(summary.submittedThisMonth)}</Text>
+            )}
             <Text style={styles.statLabel}>Submitted</Text>
             <Text style={styles.statSub}>This month</Text>
           </Card>
@@ -120,7 +132,7 @@ export default function WalletScreen() {
         {/* Recent transactions */}
         <Text style={styles.sectionTitle}>Recent Transactions</Text>
         {txLoading ? (
-          <Text style={styles.empty}>Loading...</Text>
+          Array.from({ length: 4 }).map((_, i) => <TransactionSkeleton key={i} />)
         ) : transactions.length === 0 ? (
           <Card style={styles.emptyCard}>
             <Text style={styles.emptyText}>

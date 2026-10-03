@@ -5,7 +5,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RouteProp } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Phone, MapPin, CheckSquare, Square, Banknote, Smartphone, X } from "lucide-react-native";
+import { Phone, MapPin, CheckSquare, Square, SquareMinus, Banknote, Smartphone, X } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { TopBar } from "@/components/TopBar";
 import { Card } from "@/components/Card";
@@ -13,38 +13,99 @@ import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { api, getErrorMessage } from "@/lib/api";
 import { useBillCollectionClientDetail } from "@/hooks/useBillCollection";
-import { formatTaka, formatDueDate, DUE_STATUS_BADGE, type BillCollectionInvoice } from "@/lib/billCollection";
+import { formatTaka, formatDueDate, type BillCollectionInvoice } from "@/lib/billCollection";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
+import { BillCollectionDetailSkeleton } from "@/components/PageSkeletons";
 
 type PaymentMethod = "Cash" | "bKash";
 
+// One installation invoice: header checkbox (all its vehicles) + one row per
+// completed vehicle that can be ticked individually (backend §96). Vehicles
+// not installed yet are shown greyed out - billed after installation.
 function InvoiceRow({
   invoice,
-  selected,
-  onToggle,
+  selectedSubs,
+  onToggleInvoice,
+  onToggleSub,
 }: {
   invoice: BillCollectionInvoice;
-  selected: boolean;
-  onToggle: () => void;
+  selectedSubs: Set<number>;
+  onToggleInvoice: () => void;
+  onToggleSub: (subscriptionId: number) => void;
 }) {
+  const lines = invoice.lines ?? [];
+  const picked = lines.filter((l) => selectedSubs.has(l.subscription_id));
+  const all = lines.length > 0 && picked.length === lines.length;
+  const amount = picked.reduce((sum, l) => sum + l.total, 0);
+  const total = invoice.total_vehicles ?? lines.length;
+  const installed = invoice.installed_vehicles ?? invoice.vehicles ?? lines.length;
+  // All vehicles installed -> billed and collected as one whole invoice (as
+  // before); vehicles can only be picked one by one while some still wait
+  // for installation.
+  const wholeInvoice = lines.length > 0 && lines.length === total;
   return (
-    <Pressable onPress={onToggle} style={styles.invoiceRow}>
-      {selected ? (
-        <CheckSquare size={20} color={colors.brand700} />
-      ) : (
-        <Square size={20} color={colors.slate300} />
-      )}
-      <View style={styles.invoiceBody}>
-        <Text style={styles.invoiceNumber}>{invoice.invoice_number}</Text>
-        <Text style={styles.invoiceMonth}>{invoice.month ?? "-"}</Text>
-        <View style={styles.invoiceDueRow}>
-          <Text style={styles.invoiceDue}>Due: {formatDueDate(invoice.due_date)}</Text>
-          <Badge variant={DUE_STATUS_BADGE[invoice.status]}>{invoice.status}</Badge>
+    <View>
+      <Pressable onPress={onToggleInvoice} disabled={lines.length === 0} style={styles.invoiceRow}>
+        {all ? (
+          <CheckSquare size={20} color={colors.brand700} />
+        ) : picked.length > 0 ? (
+          <SquareMinus size={20} color={colors.brand700} />
+        ) : (
+          <Square size={20} color={colors.slate300} />
+        )}
+        <View style={styles.invoiceBody}>
+          <Text style={styles.invoiceNumber}>{invoice.invoice_number}</Text>
+          <Text style={styles.invoiceMonth}>{invoice.month ?? "-"}</Text>
+          {installed < total ? (
+            <Text style={styles.invoicePartial}>
+              {installed} of {total} vehicles installed - rest after installation
+            </Text>
+          ) : null}
+          {invoice.already_collected ? (
+            <Text style={styles.invoiceCollected}>Collected - awaiting CRM approval</Text>
+          ) : null}
+          <View style={styles.invoiceDueRow}>
+            <Text style={styles.invoiceDue}>Due: {formatDueDate(invoice.due_date)}</Text>
+
+          </View>
         </View>
-      </View>
-      <Text style={styles.invoiceAmount}>{formatTaka(invoice.amount)}</Text>
-    </Pressable>
+        <Text style={styles.invoiceAmount}>{formatTaka(amount)}</Text>
+      </Pressable>
+
+      {lines.length > 0 && (
+        <View style={styles.vehicleList}>
+          {lines.map((l) => {
+            const on = selectedSubs.has(l.subscription_id);
+            return (
+              <Pressable
+                key={l.subscription_id}
+                onPress={wholeInvoice ? onToggleInvoice : () => onToggleSub(l.subscription_id)}
+                style={[styles.vehicleRow, on && styles.vehicleRowOn]}
+              >
+                {wholeInvoice ? (
+                  <View style={styles.vehicleDot} />
+                ) : on ? (
+                  <CheckSquare size={16} color={colors.brand700} />
+                ) : (
+                  <Square size={16} color={colors.slate300} />
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.vehicleName}>
+                    {l.subscription_number || "-"}
+                    {l.registration_no ? ` · ${l.registration_no}` : ""}
+                  </Text>
+                  <Text style={styles.vehicleSub}>
+                    Monthly {formatTaka(l.monthly)} + Installation {formatTaka(l.installation)}
+                  </Text>
+                </View>
+                <Text style={styles.vehicleTotal}>{formatTaka(l.total)}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -56,7 +117,8 @@ export default function BillCollectionClientDetailScreen() {
   const { detail, isLoading } = useBillCollectionClientDetail(customerId);
   const invoices = useMemo(() => detail?.invoices ?? [], [detail?.invoices]);
 
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // Ticked vehicles (subscription ids) - the unit billed and paid (§96).
+  const [selectedSubs, setSelectedSubs] = useState<Set<number>>(new Set());
   const [method, setMethod] = useState<PaymentMethod>("Cash");
   const [collecting, setCollecting] = useState(false);
   // Set once a bKash checkout session is created - opens the in-app WebView
@@ -83,16 +145,26 @@ export default function BillCollectionClientDetailScreen() {
   >(null);
   if (detail?.invoices && detail.invoices !== selectedForInvoices) {
     setSelectedForInvoices(detail.invoices);
-    setSelectedIds(new Set(detail.invoices.map((inv) => inv.id)));
+    setSelectedSubs(new Set(detail.invoices.flatMap((inv) => (inv.lines ?? []).map((l) => l.subscription_id))));
   }
 
-  const allSelected = invoices.length > 0 && selectedIds.size === invoices.length;
+  const allSubIds = invoices.flatMap((inv) => (inv.lines ?? []).map((l) => l.subscription_id));
+  const allSelected = allSubIds.length > 0 && allSubIds.every((id) => selectedSubs.has(id));
 
   const toggleAll = () => {
-    setSelectedIds(allSelected ? new Set() : new Set(invoices.map((inv) => inv.id)));
+    setSelectedSubs(allSelected ? new Set() : new Set(allSubIds));
   };
-  const toggleOne = (id: number) => {
-    setSelectedIds((prev) => {
+  const toggleInvoice = (inv: BillCollectionInvoice) => {
+    const ids = (inv.lines ?? []).map((l) => l.subscription_id);
+    setSelectedSubs((prev) => {
+      const next = new Set(prev);
+      const everyOn = ids.every((id) => next.has(id));
+      ids.forEach((id) => (everyOn ? next.delete(id) : next.add(id)));
+      return next;
+    });
+  };
+  const toggleSub = (id: number) => {
+    setSelectedSubs((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -100,9 +172,23 @@ export default function BillCollectionClientDetailScreen() {
     });
   };
 
+  // Invoices with at least one ticked vehicle, and what the bill shows.
+  const selectedIds = useMemo(
+    () =>
+      new Set(
+        invoices
+          .filter((inv) => (inv.lines ?? []).some((l) => selectedSubs.has(l.subscription_id)))
+          .map((inv) => inv.id),
+      ),
+    [invoices, selectedSubs],
+  );
   const selectedTotal = useMemo(
-    () => invoices.filter((inv) => selectedIds.has(inv.id)).reduce((s, inv) => s + inv.amount, 0),
-    [invoices, selectedIds],
+    () =>
+      invoices
+        .flatMap((inv) => inv.lines ?? [])
+        .filter((l) => selectedSubs.has(l.subscription_id))
+        .reduce((sum, l) => sum + l.total, 0),
+    [invoices, selectedSubs],
   );
 
   const handleCollect = async () => {
@@ -116,6 +202,7 @@ export default function BillCollectionClientDetailScreen() {
       try {
         const res = await api.post("/api/technician/bill-collection/collect-bkash", {
           invoice_ids: Array.from(selectedIds),
+          subscription_ids: Array.from(selectedSubs),
         });
         const { payment_url, tran_id } = res.data || {};
         if (!payment_url || !tran_id) {
@@ -145,6 +232,7 @@ export default function BillCollectionClientDetailScreen() {
     try {
       const res = await api.post("/api/technician/bill-collection/collect", {
         invoice_ids: Array.from(selectedIds),
+        subscription_ids: Array.from(selectedSubs),
       });
       navigation.navigate("BillCollectionResult", {
         status: "success",
@@ -239,7 +327,7 @@ export default function BillCollectionClientDetailScreen() {
       <View style={{ flex: 1 }}>
         <TopBar title="Client Details" onBack={() => navigation.goBack()} />
         <Screen>
-          <Text style={styles.loadingText}>Loading client...</Text>
+          <BillCollectionDetailSkeleton />
         </Screen>
       </View>
     );
@@ -320,8 +408,9 @@ export default function BillCollectionClientDetailScreen() {
               <View key={inv.id} style={i > 0 ? styles.invoiceDivider : undefined}>
                 <InvoiceRow
                   invoice={inv}
-                  selected={selectedIds.has(inv.id)}
-                  onToggle={() => toggleOne(inv.id)}
+                  selectedSubs={selectedSubs}
+                  onToggleInvoice={() => toggleInvoice(inv)}
+                  onToggleSub={toggleSub}
                 />
               </View>
             ))}
@@ -332,7 +421,7 @@ export default function BillCollectionClientDetailScreen() {
           <View style={styles.selectedBadgeRow}>
             <Text style={styles.selectedLabel}>Selected Invoices</Text>
             <View style={styles.selectedCountBadge}>
-              <Text style={styles.selectedCountText}>{selectedIds.size}</Text>
+              <Text style={styles.selectedCountText}>{selectedSubs.size}</Text>
             </View>
           </View>
           <Text style={styles.selectedTotal}>{formatTaka(selectedTotal)}</Text>
@@ -369,7 +458,7 @@ export default function BillCollectionClientDetailScreen() {
         <Button
           onPress={handleCollect}
           loading={collecting}
-          disabled={selectedIds.size === 0}
+          disabled={selectedIds.size === 0 || selectedTotal <= 0}
           icon={
             method === "bKash" ? (
               <Smartphone size={16} color={colors.white} />
@@ -381,6 +470,7 @@ export default function BillCollectionClientDetailScreen() {
           Collect {formatTaka(selectedTotal)}
         </Button>
       </View>
+
 
       <Modal
         visible={Boolean(bkashUrl)}
@@ -455,6 +545,16 @@ const styles = StyleSheet.create({
   invoiceRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 12 },
   invoiceBody: { flex: 1, gap: 3 },
   invoiceNumber: { fontSize: 13.5, fontWeight: "700", color: colors.slate800 },
+  invoicePartial: { fontSize: 11.5, fontWeight: "500", color: "#d97706", marginTop: 2 },
+  invoiceCollected: { fontSize: 11.5, fontWeight: "500", color: "#059669", marginTop: 2 },
+  vehicleList: { marginLeft: 30, marginBottom: 10, gap: 6 },
+  vehicleRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: colors.slate200, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.white },
+  vehicleRowOn: { borderColor: "#bfe0dc", backgroundColor: "#f0f9f8" },
+  vehiclePending: { borderStyle: "dashed", opacity: 0.8 },
+  vehicleName: { fontSize: 13, fontWeight: "600", color: colors.slate800 },
+  vehicleSub: { fontSize: 11, color: colors.slate500, marginTop: 1 },
+  vehicleTotal: { fontSize: 13, fontWeight: "700", color: colors.slate700 },
+  vehicleDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.slate400 },
   invoiceMonth: { fontSize: 12, color: colors.slate500 },
   invoiceDueRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
   invoiceDue: { fontSize: 11, color: colors.slate400 },

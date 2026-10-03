@@ -9,6 +9,7 @@ import { NotificationRow } from "@/components/NotificationRow";
 import { colors } from "@/theme/colors";
 import { useNotifications, type AppNotification } from "@/context/NotificationContext";
 import type { RootStackParamList } from "@/navigation/types";
+import { NotificationSkeleton } from "@/components/PageSkeletons";
 
 // Full history - reached via "View All" at the bottom of the bell dropdown
 // (NotificationDropdown), which only ever shows the 3 most recent.
@@ -39,6 +40,9 @@ export default function NotificationsScreen() {
             <Text style={styles.markAllLink}>Mark all as read</Text>
           </Pressable>
         )}
+
+        {isLoading &&
+          Array.from({ length: 5 }).map((_, i) => <NotificationSkeleton key={i} />)}
 
         {!isLoading && notifications.length === 0 && (
           <Text style={styles.empty}>No notifications yet.</Text>

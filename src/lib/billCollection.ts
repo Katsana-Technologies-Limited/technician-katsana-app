@@ -42,6 +42,33 @@ export interface BillCollectionInvoice {
   amount: number;
   status: DueStatus;
   already_collected: boolean;
+  /** Installed (collectible) vehicles vs. all unpaid vehicles on the invoice -
+   *  e.g. 1 of 2 while the second is still being installed (backend §96). */
+  vehicles?: number;
+  total_vehicles?: number;
+  /** Unpaid vehicles already installed (collectible or collected). */
+  installed_vehicles?: number;
+  /** "Generate Bill": installed vehicles on this bill. */
+  lines?: BillLine[];
+  /** Unpaid vehicles left off this bill, with why (e.g. installation in progress). */
+  pending?: BillPendingVehicle[];
+}
+
+export interface BillLine {
+  subscription_id: number;
+  subscription_number: string | null;
+  registration_no: string | null;
+  imei: string | null;
+  monthly: number;
+  installation: number;
+  total: number;
+}
+
+export interface BillPendingVehicle {
+  subscription_id: number;
+  subscription_number: string | null;
+  registration_no: string | null;
+  reason: string;
 }
 
 export interface BillCollectionClientDetail {

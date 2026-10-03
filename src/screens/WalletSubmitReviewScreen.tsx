@@ -13,6 +13,8 @@ import { usePendingCollections } from "@/hooks/useWallet";
 import { formatTaka } from "@/lib/billCollection";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
+import { Skeleton } from "@/components/Skeleton";
+import { CollectionRowsSkeleton } from "@/components/PageSkeletons";
 
 export default function WalletSubmitReviewScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -46,7 +48,11 @@ export default function WalletSubmitReviewScreen() {
 
         <Card style={styles.totalCard}>
           <Text style={styles.totalLabel}>Total Amount to Submit</Text>
-          <Text style={styles.totalAmount}>{isLoading ? "-" : formatTaka(totalAmount)}</Text>
+          {isLoading ? (
+            <Skeleton style={{ width: 120, height: 26, marginVertical: 3 }} />
+          ) : (
+            <Text style={styles.totalAmount}>{formatTaka(totalAmount)}</Text>
+          )}
           <Text style={styles.totalSub}>
             This amount will be submitted to Accounts for client invoice payment
           </Text>
@@ -54,7 +60,7 @@ export default function WalletSubmitReviewScreen() {
 
         <Text style={styles.sectionTitle}>Collections Included</Text>
         {isLoading ? (
-          <Text style={styles.empty}>Loading...</Text>
+          <CollectionRowsSkeleton />
         ) : collections.length === 0 ? (
           <Card style={styles.emptyCard}>
             <Text style={styles.emptyText}>Nothing in your wallet to submit.</Text>

@@ -1,17 +1,20 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, TextInput } from "react-native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useNavigation } from "@react-navigation/native";
-import { Search, Filter, Users, FileText, MapPin, ChevronRight, ChevronDown } from "lucide-react-native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { Search, Filter, Users, FileText, MapPin, ChevronRight, ChevronDown, Inbox } from "lucide-react-native";
 import { Screen } from "@/components/Screen";
 import { TopBar } from "@/components/TopBar";
 import { Card } from "@/components/Card";
 import { Badge } from "@/components/Badge";
+import { Button } from "@/components/Button";
 import { useSidebar } from "@/context/SidebarContext";
 import { useBillCollectionClients } from "@/hooks/useBillCollection";
 import { formatTaka, DUE_STATUS_BADGE, type BillCollectionClient } from "@/lib/billCollection";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
+import { Skeleton } from "@/components/Skeleton";
+import { ClientCardSkeleton } from "@/components/PageSkeletons";
 
 // Cycled by row index, same "varied soft-color initial avatar" look the
 // mockup shows across its client list - no per-client identity behind the
@@ -92,6 +95,57 @@ export default function BillCollectionScreen() {
 
   const sortedClients = useMemo(() => clients, [clients]);
 
+  // Opens on a single centred "Generate Bill" button every time the screen
+  // is shown; tapping it reveals the clients to bill (stats + list).
+  const [started, setStarted] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setStarted(false);
+    }, []),
+  );
+
+  if (!started) {
+    return (
+      <View style={{ flex: 1 }}>
+        <TopBar title="Bill Collection" onMenuPress={() => open("BillCollection")} />
+        <View style={styles.gate}>
+          <View style={styles.gateIcon}>
+            <FileText size={30} color={colors.brand700} />
+          </View>
+          <Text style={styles.gateTitle}>Bill Collection</Text>
+          <Text style={styles.gateText}>Generate bills for the installations you've completed.</Text>
+          <View style={{ alignSelf: "stretch", marginTop: 22 }}>
+            <Button onPress={() => setStarted(true)} icon={<FileText size={16} color={colors.white} />}>
+              Generate Bill
+            </Button>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Nothing to bill at all (not just an empty search) - one clear empty
+  // state instead of zero stats and an empty list.
+  if (!isLoading && !search && sortedClients.length === 0) {
+    return (
+      <View style={{ flex: 1 }}>
+        <TopBar title="Bill Collection" onMenuPress={() => open("BillCollection")} />
+        <View style={styles.gate}>
+          <View style={[styles.gateIcon, { backgroundColor: colors.slate100 }]}>
+            <Inbox size={30} color={colors.slate400} />
+          </View>
+          <Text style={styles.gateTitle}>No data</Text>
+          <Text style={styles.gateText}>No completed installations are waiting for payment right now.</Text>
+          <View style={{ alignSelf: "stretch", marginTop: 22 }}>
+            <Button variant="outline" onPress={() => setStarted(false)}>
+              Back
+            </Button>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Bill Collection" onMenuPress={() => open("BillCollection")} />
@@ -119,7 +173,11 @@ export default function BillCollectionScreen() {
             <View style={[styles.statIcon, { backgroundColor: colors.emerald100 }]}>
               <Users size={18} color={colors.emerald600} />
             </View>
-            <Text style={styles.statValue}>{isLoading ? "-" : totalClients}</Text>
+            {isLoading ? (
+              <Skeleton style={{ width: 36, height: 22, marginVertical: 2 }} />
+            ) : (
+              <Text style={styles.statValue}>{totalClients}</Text>
+            )}
             <Text style={styles.statLabel}>Total Clients</Text>
             <Text style={styles.statSub}>Assigned to you</Text>
           </Card>
@@ -127,9 +185,13 @@ export default function BillCollectionScreen() {
             <View style={[styles.statIcon, { backgroundColor: colors.amber100 }]}>
               <FileText size={18} color={colors.amber600} />
             </View>
-            <Text style={styles.statValue}>{isLoading ? "-" : formatTaka(totalOutstanding)}</Text>
+            {isLoading ? (
+              <Skeleton style={{ width: 90, height: 22, marginVertical: 2 }} />
+            ) : (
+              <Text style={styles.statValue}>{formatTaka(totalOutstanding)}</Text>
+            )}
             <Text style={styles.statLabel}>Total Outstanding</Text>
-            <Text style={styles.statSub}>From {isLoading ? "-" : totalClients} clients</Text>
+            <Text style={styles.statSub}>{isLoading ? " " : `From ${totalClients} clients`}</Text>
           </Card>
         </View>
 
@@ -142,12 +204,12 @@ export default function BillCollectionScreen() {
         </View>
 
         {isLoading ? (
-          <Text style={styles.empty}>Loading clients...</Text>
+          Array.from({ length: 4 }).map((_, i) => <ClientCardSkeleton key={i} />)
         ) : sortedClients.length === 0 ? (
           <Card style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No outstanding clients</Text>
+            <Text style={styles.emptyTitle}>No clients match your search</Text>
             <Text style={styles.emptySubtitle}>
-              Nothing to collect in your area right now.
+              Try a different name or phone number.
             </Text>
           </Card>
         ) : (
@@ -177,6 +239,10 @@ export default function BillCollectionScreen() {
 }
 
 const styles = StyleSheet.create({
+  gate: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 },
+  gateIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#f0f9f8", alignItems: "center", justifyContent: "center" },
+  gateTitle: { marginTop: 16, fontSize: 18, fontWeight: "700", color: colors.slate800 },
+  gateText: { marginTop: 4, fontSize: 13.5, color: colors.slate500, textAlign: "center" },
   searchRow: { flexDirection: "row", gap: 10 },
   searchBox: {
     flex: 1,
