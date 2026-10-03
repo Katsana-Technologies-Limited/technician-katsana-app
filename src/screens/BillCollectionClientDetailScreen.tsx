@@ -13,7 +13,7 @@ import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { api, getErrorMessage } from "@/lib/api";
 import { useBillCollectionClientDetail } from "@/hooks/useBillCollection";
-import { formatTaka, formatDueDate, type BillCollectionInvoice } from "@/lib/billCollection";
+import { formatTaka, type BillCollectionInvoice } from "@/lib/billCollection";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 import { BillCollectionDetailSkeleton } from "@/components/PageSkeletons";
@@ -39,7 +39,6 @@ function InvoiceRow({
   const all = lines.length > 0 && picked.length === lines.length;
   const amount = picked.reduce((sum, l) => sum + l.total, 0);
   const total = invoice.total_vehicles ?? lines.length;
-  const installed = invoice.installed_vehicles ?? invoice.vehicles ?? lines.length;
   // All vehicles installed -> billed and collected as one whole invoice (as
   // before); vehicles can only be picked one by one while some still wait
   // for installation.
@@ -57,18 +56,9 @@ function InvoiceRow({
         <View style={styles.invoiceBody}>
           <Text style={styles.invoiceNumber}>{invoice.invoice_number}</Text>
           <Text style={styles.invoiceMonth}>{invoice.month ?? "-"}</Text>
-          {installed < total ? (
-            <Text style={styles.invoicePartial}>
-              {installed} of {total} vehicles installed - rest after installation
-            </Text>
-          ) : null}
           {invoice.already_collected ? (
             <Text style={styles.invoiceCollected}>Collected - awaiting CRM approval</Text>
           ) : null}
-          <View style={styles.invoiceDueRow}>
-            <Text style={styles.invoiceDue}>Due: {formatDueDate(invoice.due_date)}</Text>
-
-          </View>
         </View>
         <Text style={styles.invoiceAmount}>{formatTaka(amount)}</Text>
       </Pressable>
@@ -545,7 +535,6 @@ const styles = StyleSheet.create({
   invoiceRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 12 },
   invoiceBody: { flex: 1, gap: 3 },
   invoiceNumber: { fontSize: 13.5, fontWeight: "700", color: colors.slate800 },
-  invoicePartial: { fontSize: 11.5, fontWeight: "500", color: "#d97706", marginTop: 2 },
   invoiceCollected: { fontSize: 11.5, fontWeight: "500", color: "#059669", marginTop: 2 },
   vehicleList: { marginLeft: 30, marginBottom: 10, gap: 6 },
   vehicleRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: colors.slate200, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.white },
@@ -556,8 +545,6 @@ const styles = StyleSheet.create({
   vehicleTotal: { fontSize: 13, fontWeight: "700", color: colors.slate700 },
   vehicleDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.slate400 },
   invoiceMonth: { fontSize: 12, color: colors.slate500 },
-  invoiceDueRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
-  invoiceDue: { fontSize: 11, color: colors.slate400 },
   invoiceAmount: { fontSize: 14, fontWeight: "700", color: colors.slate800 },
   selectedRow: {
     flexDirection: "row",
