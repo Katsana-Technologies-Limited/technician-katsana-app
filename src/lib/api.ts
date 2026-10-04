@@ -28,15 +28,24 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// A 401 means the token is missing/expired/invalid - drop it so the next
-// screen render sees "logged out" instead of silently retrying with a dead
-// token. The screen itself (AuthContext) is responsible for navigating back
-// to Login; this only clears the stale credential.
+// AuthContext registers this so a 401 from any screen logs the app out
+// right away (code = the backend's reason, e.g. "SESSION_IDLE" after 15
+// minutes without activity, §100).
+let onUnauthorized: ((code?: string) => void) | null = null;
+export function setUnauthorizedHandler(handler: ((code?: string) => void) | null) {
+  onUnauthorized = handler;
+}
+
+// A 401 means the session is over (logged out, idle, expired) - drop the
+// token and tell AuthContext, which switches to the Login screen. Login
+// itself answers 401 for a wrong password, so it's excluded.
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error?.response?.status === 401) {
+    const url: string = error?.config?.url || "";
+    if (error?.response?.status === 401 && !url.includes("/auth/login")) {
       await clearToken();
+      onUnauthorized?.(error?.response?.data?.code);
     }
     return Promise.reject(error);
   },

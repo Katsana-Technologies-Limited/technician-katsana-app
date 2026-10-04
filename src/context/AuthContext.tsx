@@ -1,19 +1,22 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
-import * as LocalAuthentication from "expo-local-authentication";
-import { api } from "@/lib/api";
-import {
-  getToken,
-  setToken,
-  clearToken,
-  getBiometricEnabled,
-  setBiometricEnabled,
-} from "@/lib/auth";
+import { AppState, View } from "react-native";
+import { api, setUnauthorizedHandler } from "@/lib/api";
+import { getToken, setToken, clearToken } from "@/lib/auth";
+
+// 15 minutes without touching the app logs the technician out - same idea
+// as crm-katsana-react's useIdleLogout. The backend enforces the same limit
+// on its side (technicianSession.js, BUSINESS_LOGIC.md §100), so this is
+// the friendly half: it logs out on time and shows why, instead of the
+// next request just failing.
+const IDLE_LIMIT_MS = 15 * 60 * 1000;
 
 export interface TechnicianInfo {
   id: number;
@@ -29,27 +32,9 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (mobile: string, password: string, remember: boolean) => Promise<void>;
   logout: () => Promise<void>;
-  // Device has a fingerprint/Face ID sensor with at least one enrolled -
-  // gates whether SettingsScreen even offers the toggle at all.
-  biometricSupported: boolean;
-  // The technician's own opt-in preference, persisted across app restarts.
-  biometricEnabled: boolean;
-  // Re-confirms with a live biometric prompt before flipping the
-  // preference on - a stale "yes" from a UI toggle alone isn't proof the
-  // person holding the phone right now is who they claim to be.
-  enableBiometric: () => Promise<boolean>;
-  disableBiometric: () => Promise<void>;
-  // Whether the login screen should even offer the fingerprint button -
-  // true only when the preference is on AND a session token is still
-  // sitting in SecureStore for it to unlock (e.g. after a biometric-aware
-  // logout, but not on a fresh install or after the 30-day token expired).
-  canLoginWithBiometric: () => Promise<boolean>;
-  // "cancelled" - the fingerprint prompt itself failed/was dismissed; the
-  // saved token is still there, so the button should stay and let them
-  // retry. "expired" - the token no longer verifies server-side and has
-  // been dropped; there's nothing left to unlock, so the caller should
-  // fall back to the password fields instead of offering another retry.
-  loginWithBiometric: () => Promise<"success" | "cancelled" | "expired">;
+  // Why the last logout happened, for the Login screen's notice - "idle"
+  // after 15 minutes without activity (here or on the backend), else null.
+  logoutReason: "idle" | null;
   // Re-fetches the technician's own row (photo, in practice) after a
   // self-service update on ProfileScreen - verify-auth already returns the
   // full technicianInfo shape, so it doubles as a refresh call.
@@ -61,27 +46,14 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [technician, setTechnician] = useState<TechnicianInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [biometricSupported, setBiometricSupported] = useState(false);
-  const [biometricEnabled, setBiometricEnabledState] = useState(false);
-
-  // Hardware capability and the stored preference are independent of the
-  // token-verify check above, so they run in their own effect rather than
-  // blocking (or being blocked by) the splash-screen delay.
-  useEffect(() => {
-    (async () => {
-      const [hasHardware, isEnrolled, enabledPref] = await Promise.all([
-        LocalAuthentication.hasHardwareAsync(),
-        LocalAuthentication.isEnrolledAsync(),
-        getBiometricEnabled(),
-      ]);
-      setBiometricSupported(hasHardware && isEnrolled);
-      setBiometricEnabledState(enabledPref);
-    })();
-  }, []);
+  const [logoutReason, setLogoutReason] = useState<"idle" | null>(null);
+  const lastActivityRef = useRef(Date.now());
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // On cold start, a token may already be sitting in SecureStore from a
   // previous session - verify it's still valid against the backend rather
-  // than trusting it blindly (it may have expired or been revoked).
+  // than trusting it blindly (it may have expired, been logged out, or gone
+  // idle - the backend refuses all three).
   //
   // The token check can resolve in a few ms (no token, or a fast local
   // network), which would otherwise flash the splash screen for a single
@@ -96,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const res = await api.get("/api/technician/verify-auth");
           if (res.data?.authenticated) {
+            lastActivityRef.current = Date.now();
             setTechnician(res.data.technicianInfo);
           } else {
             await clearToken();
@@ -117,81 +90,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       remember,
       // Tells the backend this is the native app, not the browser - it
       // issues a 30-day token either way instead of the web's
-      // remember-me-dependent 12h/30d split (see loginTechnician).
+      // remember-me-dependent 12h/30d split (see loginTechnician). The
+      // 15-minute inactivity limit applies on top of that.
       clientType: "mobile",
     });
     if (!res.data?.loginStatus || !res.data?.token) {
       throw new Error(res.data?.message || "Login failed");
     }
     await setToken(res.data.token);
+    lastActivityRef.current = Date.now();
+    setLogoutReason(null);
     setTechnician(res.data.technicianInfo);
   };
 
-  const logout = async () => {
+  // Ends the session on the backend (the token stops working everywhere),
+  // then drops it here.
+  const endSession = useCallback(async (reason: "idle" | null) => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     try {
       await api.post("/api/technician/auth/logout");
     } catch {
-      // Cookie-clearing on the server is irrelevant to a Bearer client -
-      // clearing the local token below is what actually logs this app out.
+      // Already logged out / offline - clearing the token below still logs
+      // this app out, and the backend refuses it after 15 idle minutes anyway.
     }
-    // With fingerprint login on, logout only needs to hide the app's
-    // in-memory session - the token stays in SecureStore so the fingerprint
-    // prompt has something to unlock next time. Without it, this behaves
-    // exactly as before: the token is gone and only a password gets back in.
-    if (!biometricEnabled) {
-      await clearToken();
-    }
-    setTechnician(null);
-  };
-
-  const enableBiometric = async (): Promise<boolean> => {
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Confirm your fingerprint to enable fingerprint login",
-    });
-    if (!result.success) return false;
-    await setBiometricEnabled(true);
-    setBiometricEnabledState(true);
-    return true;
-  };
-
-  const disableBiometric = async () => {
-    await setBiometricEnabled(false);
-    setBiometricEnabledState(false);
-  };
-
-  const canLoginWithBiometric = async (): Promise<boolean> => {
-    if (!biometricEnabled) return false;
-    const token = await getToken();
-    return token !== null;
-  };
-
-  const loginWithBiometric = async (): Promise<"success" | "cancelled" | "expired"> => {
-    const token = await getToken();
-    if (!token) return "expired";
-
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Login with fingerprint",
-    });
-    if (!result.success) return "cancelled";
-
-    try {
-      const res = await api.get("/api/technician/verify-auth");
-      if (res.data?.authenticated) {
-        setTechnician(res.data.technicianInfo);
-        return "success";
-      }
-    } catch {
-      // fall through to the stale-token cleanup below
-    }
-
-    // The saved token no longer verifies (expired/revoked) - nothing left
-    // for a fingerprint to unlock, so drop it and the preference together
-    // rather than leaving a dead "fingerprint enabled" toggle behind.
     await clearToken();
-    await setBiometricEnabled(false);
-    setBiometricEnabledState(false);
-    return "expired";
-  };
+    setLogoutReason(reason);
+    setTechnician(null);
+  }, []);
+
+  const logout = useCallback(() => endSession(null), [endSession]);
+
+  // Restart the 15-minute countdown. Called on every touch (see the View
+  // wrapper below) and right after logging in.
+  const markActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => endSession("idle"), IDLE_LIMIT_MS);
+  }, [endSession]);
+
+  // Timer runs only while logged in.
+  useEffect(() => {
+    if (!technician) return;
+    markActivity();
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [technician, markActivity]);
+
+  // Timers don't run reliably while the app is in the background, so on
+  // coming back check the clock instead: 15+ minutes away = logged out.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active" || !technician) return;
+      if (Date.now() - lastActivityRef.current >= IDLE_LIMIT_MS) {
+        endSession("idle");
+      } else {
+        markActivity();
+      }
+    });
+    return () => sub.remove();
+  }, [technician, endSession, markActivity]);
+
+  // Any request the backend refuses with 401 (idle there, logged out on
+  // another device, expired) - show the Login screen right away.
+  useEffect(() => {
+    setUnauthorizedHandler((code) => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      setLogoutReason(code === "SESSION_IDLE" ? "idle" : null);
+      setTechnician(null);
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   const refreshTechnician = async () => {
     try {
@@ -207,21 +176,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{
-        technician,
-        isLoading,
-        login,
-        logout,
-        biometricSupported,
-        biometricEnabled,
-        enableBiometric,
-        disableBiometric,
-        canLoginWithBiometric,
-        loginWithBiometric,
-        refreshTechnician,
-      }}
+      value={{ technician, isLoading, login, logout, logoutReason, refreshTechnician }}
     >
-      {children}
+      {/* Every touch anywhere in the app counts as activity. Touch events
+          bubble up to here without taking the touch away from the screen. */}
+      <View style={{ flex: 1 }} onTouchStart={technician ? markActivity : undefined}>
+        {children}
+      </View>
     </AuthContext.Provider>
   );
 }
