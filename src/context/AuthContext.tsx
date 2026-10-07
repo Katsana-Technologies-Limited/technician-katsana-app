@@ -8,8 +8,18 @@ import {
   type ReactNode,
 } from "react";
 import { AppState, View } from "react-native";
+import * as LocalAuthentication from "expo-local-authentication";
 import { api, setUnauthorizedHandler } from "@/lib/api";
-import { getToken, setToken, clearToken } from "@/lib/auth";
+import {
+  getToken,
+  setToken,
+  clearToken,
+  getBiometricEnabled,
+  setBiometricEnabled,
+  getSavedLogin,
+  saveLogin,
+  clearSavedLogin,
+} from "@/lib/auth";
 
 // 15 minutes without touching the app logs the technician out - same idea
 // as crm-katsana-react's useIdleLogout. The backend enforces the same limit
@@ -39,6 +49,21 @@ interface AuthContextValue {
   // self-service update on ProfileScreen - verify-auth already returns the
   // full technicianInfo shape, so it doubles as a refresh call.
   refreshTechnician: () => Promise<void>;
+  // Fingerprint login (lib/auth.ts): phone has a sensor with a finger
+  // enrolled / technician turned it on in Settings / a login is saved.
+  biometricSupported: boolean;
+  biometricEnabled: boolean;
+  hasSavedLogin: boolean;
+  // "enabled" | "cancelled" (no fingerprint match) | "needs-password" (turned
+  // on, but the app was opened without a password login - takes effect at
+  // the next password login).
+  enableBiometric: () => Promise<"enabled" | "cancelled" | "needs-password">;
+  disableBiometric: () => Promise<void>;
+  // "invalid" = the saved password no longer works (changed elsewhere) - it
+  // is removed and the technician logs in with the password once.
+  loginWithBiometric: () => Promise<"success" | "cancelled" | "invalid">;
+  // After Change Password, so the saved login keeps working.
+  updateSavedPassword: (newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -49,6 +74,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [logoutReason, setLogoutReason] = useState<"idle" | null>(null);
   const lastActivityRef = useRef(Date.now());
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricEnabled, setBiometricEnabledState] = useState(false);
+  const [hasSavedLogin, setHasSavedLogin] = useState(false);
+  // The password typed in this session - only in memory, so turning
+  // fingerprint on in Settings right after logging in can save it.
+  const lastLoginRef = useRef<{ mobile: string; password: string } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const [hasHardware, isEnrolled, enabled, saved] = await Promise.all([
+        LocalAuthentication.hasHardwareAsync(),
+        LocalAuthentication.isEnrolledAsync(),
+        getBiometricEnabled(),
+        getSavedLogin(),
+      ]);
+      setBiometricSupported(hasHardware && isEnrolled);
+      setBiometricEnabledState(enabled);
+      setHasSavedLogin(enabled && saved !== null);
+    })();
+  }, []);
 
   // On cold start, a token may already be sitting in SecureStore from a
   // previous session - verify it's still valid against the backend rather
@@ -98,6 +143,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(res.data?.message || "Login failed");
     }
     await setToken(res.data.token);
+    lastLoginRef.current = { mobile, password };
+    // Fingerprint on: keep the saved login current (first save after turning
+    // it on, or a password changed on the web).
+    if (await getBiometricEnabled()) {
+      await saveLogin({ mobile, password });
+      setHasSavedLogin(true);
+    }
     lastActivityRef.current = Date.now();
     setLogoutReason(null);
     setTechnician(res.data.technicianInfo);
@@ -162,6 +214,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setUnauthorizedHandler(null);
   }, []);
 
+  const enableBiometric = async (): Promise<"enabled" | "cancelled" | "needs-password"> => {
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Confirm your fingerprint to enable fingerprint login",
+    });
+    if (!result.success) return "cancelled";
+    await setBiometricEnabled(true);
+    setBiometricEnabledState(true);
+    if (!lastLoginRef.current) return "needs-password";
+    await saveLogin(lastLoginRef.current);
+    setHasSavedLogin(true);
+    return "enabled";
+  };
+
+  const disableBiometric = async () => {
+    await setBiometricEnabled(false);
+    await clearSavedLogin();
+    setBiometricEnabledState(false);
+    setHasSavedLogin(false);
+  };
+
+  const loginWithBiometric = async (): Promise<"success" | "cancelled" | "invalid"> => {
+    const saved = await getSavedLogin();
+    if (!saved) {
+      setHasSavedLogin(false);
+      return "invalid";
+    }
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Login with fingerprint",
+    });
+    if (!result.success) return "cancelled";
+    try {
+      await login(saved.mobile, saved.password, true);
+      return "success";
+    } catch (err: any) {
+      // Wrong password now (changed on the web) - drop it; anything else
+      // (offline, server down) is shown by the caller and kept for a retry.
+      if (err?.response?.status === 401) {
+        await clearSavedLogin();
+        setHasSavedLogin(false);
+        return "invalid";
+      }
+      throw err;
+    }
+  };
+
+  const updateSavedPassword = async (newPassword: string) => {
+    if (lastLoginRef.current) lastLoginRef.current.password = newPassword;
+    const saved = await getSavedLogin();
+    if (saved) await saveLogin({ ...saved, password: newPassword });
+  };
+
   const refreshTechnician = async () => {
     try {
       const res = await api.get("/api/technician/verify-auth");
@@ -176,7 +279,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ technician, isLoading, login, logout, logoutReason, refreshTechnician }}
+      value={{
+        technician,
+        isLoading,
+        login,
+        logout,
+        logoutReason,
+        refreshTechnician,
+        biometricSupported,
+        biometricEnabled,
+        hasSavedLogin,
+        enableBiometric,
+        disableBiometric,
+        loginWithBiometric,
+        updateSavedPassword,
+      }}
     >
       {/* Every touch anywhere in the app counts as activity. Touch events
           bubble up to here without taking the touch away from the screen. */}

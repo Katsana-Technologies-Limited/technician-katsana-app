@@ -51,7 +51,7 @@ function PasswordField({
 
 export default function ChangePasswordScreen() {
   const navigation = useNavigation<Nav>();
-  const { refreshTechnician } = useAuth();
+  const { refreshTechnician, updateSavedPassword } = useAuth();
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -77,6 +77,8 @@ export default function ChangePasswordScreen() {
         new_password: newPassword,
       });
       await refreshTechnician();
+      // Keep the fingerprint login's saved password current.
+      await updateSavedPassword(newPassword);
       Alert.alert("Password changed successfully");
       navigation.goBack();
     } catch (err: any) {

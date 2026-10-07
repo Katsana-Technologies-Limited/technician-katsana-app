@@ -20,6 +20,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ],
       "versionCode": 4
     },
     "web": {
@@ -27,6 +31,12 @@
     },
     "plugins": [
       "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Katsana FieldForce uses Face ID to let you log back in without typing your password."
+        }
+      ],
       [
         "expo-image-picker",
         {

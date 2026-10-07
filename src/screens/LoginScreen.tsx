@@ -9,7 +9,7 @@ import {
   ScrollView,
   Pressable,
 } from "react-native";
-import { Eye, EyeOff, User, Lock, Check } from "lucide-react-native";
+import { Eye, EyeOff, User, Lock, Check, Fingerprint } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Input } from "@/components/Input";
@@ -19,13 +19,32 @@ import { getErrorMessage } from "@/lib/api";
 import { colors } from "@/theme/colors";
 
 export default function LoginScreen() {
-  const { login, logoutReason } = useAuth();
+  const { login, logoutReason, biometricSupported, biometricEnabled, hasSavedLogin, loginWithBiometric } =
+    useAuth();
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const showBiometric = biometricSupported && biometricEnabled && hasSavedLogin;
+
+  const handleBiometricLogin = async () => {
+    setError(null);
+    setBiometricBusy(true);
+    try {
+      const result = await loginWithBiometric();
+      if (result === "invalid") {
+        setError("Your password has changed - please login with your password once.");
+      }
+      // "cancelled": the button stays, so they can just try again.
+    } catch (err) {
+      setError(getErrorMessage(err, "Login failed"));
+    } finally {
+      setBiometricBusy(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!mobile.trim() || !password.trim()) {
@@ -125,6 +144,25 @@ export default function LoginScreen() {
                 Login
               </Button>
 
+              {showBiometric && (
+                <>
+                  <View style={styles.dividerRow}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>or</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+
+                  <Button
+                    variant="outline"
+                    onPress={handleBiometricLogin}
+                    loading={biometricBusy}
+                    icon={<Fingerprint size={18} color={colors.brand700} />}
+                  >
+                    Login with Fingerprint
+                  </Button>
+                </>
+              )}
+
             </View>
           </ScrollView>
 
@@ -177,6 +215,9 @@ const styles = StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: colors.emerald500, borderColor: colors.emerald600 },
   rememberText: { fontSize: 13, color: colors.slate600 },
+  dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.slate200 },
+  dividerText: { fontSize: 12, color: colors.slate400 },
   footer: { alignItems: "center", paddingTop: 8, paddingBottom: 8, gap: 2 },
   version: { fontSize: 11, color: colors.slate400 },
   copyright: { fontSize: 11, color: colors.slate400 },

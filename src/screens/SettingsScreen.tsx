@@ -1,7 +1,8 @@
-import { View, Text, Image, Pressable, StyleSheet } from "react-native";
+import { useState } from "react";
+import { View, Text, Image, Pressable, StyleSheet, Switch, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { UserRound, LogOut, Lock, ChevronRight } from "lucide-react-native";
+import { UserRound, LogOut, Fingerprint, Lock, ChevronRight } from "lucide-react-native";
 import { TopBar } from "@/components/TopBar";
 import { Screen } from "@/components/Screen";
 import { Card } from "@/components/Card";
@@ -16,7 +17,37 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export default function SettingsScreen() {
-  const { technician, logout } = useAuth();
+  const {
+    technician,
+    logout,
+    biometricSupported,
+    biometricEnabled,
+    hasSavedLogin,
+    enableBiometric,
+    disableBiometric,
+  } = useAuth();
+  const [togglingBiometric, setTogglingBiometric] = useState(false);
+
+  const onToggleBiometric = async (value: boolean) => {
+    setTogglingBiometric(true);
+    try {
+      if (!value) {
+        await disableBiometric();
+        return;
+      }
+      const result = await enableBiometric();
+      if (result === "cancelled") {
+        Alert.alert("Fingerprint not confirmed", "Try again to enable fingerprint login.");
+      } else if (result === "needs-password") {
+        Alert.alert(
+          "Almost done",
+          "Fingerprint login will work after you log in with your password once.",
+        );
+      }
+    } finally {
+      setTogglingBiometric(false);
+    }
+  };
   const { open } = useSidebar();
   const navigation = useNavigation<Nav>();
   const photoUri = technician?.photo ? `${API_URL}${technician.photo}` : null;
@@ -67,6 +98,28 @@ export default function SettingsScreen() {
           </Pressable>
         </Card>
 
+        {biometricSupported && (
+          <Card style={styles.biometricRow}>
+            <View style={styles.biometricLabel}>
+              <Fingerprint size={20} color={colors.brand700} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.biometricTitle}>Login with Fingerprint</Text>
+                <Text style={styles.biometricSubtitle}>
+                  {biometricEnabled && !hasSavedLogin
+                    ? "Works after your next password login"
+                    : "Use your fingerprint instead of your password after logout"}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={biometricEnabled}
+              onValueChange={onToggleBiometric}
+              disabled={togglingBiometric}
+              trackColor={{ true: colors.brand500, false: colors.slate300 }}
+            />
+          </Card>
+        )}
+
 
         <Button
           variant="outline"
@@ -105,4 +158,8 @@ const styles = StyleSheet.create({
   rowLabel: { flexDirection: "row", alignItems: "center", gap: 10 },
   rowText: { fontSize: 14, fontWeight: "500", color: colors.slate700 },
   rowDivider: { height: 1, backgroundColor: colors.slate200, marginLeft: 16 },
+  biometricRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  biometricLabel: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
+  biometricTitle: { fontSize: 14, fontWeight: "600", color: colors.slate800 },
+  biometricSubtitle: { fontSize: 11, color: colors.slate500, marginTop: 1 },
 });
