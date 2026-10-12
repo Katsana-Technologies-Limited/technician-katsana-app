@@ -60,6 +60,16 @@
           "icon": "./assets/applogo.png",
           "color": "#14958a"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keepclassmembers class * { @android.webkit.JavascriptInterface <methods>; }\n-keepattributes JavascriptInterface\n-keepattributes SourceFile,LineNumberTable"
+          }
+        }
       ]
     ],
     "owner": "momin-hossain-mbstus-team",
