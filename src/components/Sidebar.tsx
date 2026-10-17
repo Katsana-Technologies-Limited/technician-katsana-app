@@ -9,7 +9,6 @@ import { useAuth } from "@/context/AuthContext";
 import { colors } from "@/theme/colors";
 import type { RootStackParamList } from "@/navigation/types";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 // Same set + order as technician-katsana (web)'s TechnicianShell NAV_ITEMS.
 const NAV_ITEMS: Array<{ key: SidebarRoute; label: string; icon: typeof Home }> = [
@@ -23,7 +22,7 @@ const DRAWER_WIDTH = 256;
 
 export function Sidebar() {
   const { visible, activeRoute, close } = useSidebar();
-  const { technician, logout } = useAuth();
+  const { logout } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
@@ -48,13 +47,6 @@ export function Sidebar() {
     close();
     navigation.navigate("Tabs", { screen } as never);
   };
-
-  const initials = (technician?.name ?? "Technician")
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("");
-  const photoUri = technician?.photo ? `${API_URL}${technician.photo}` : null;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={visible ? "auto" : "none"}>
@@ -92,39 +84,16 @@ export function Sidebar() {
           })}
         </View>
 
+        {/* Like the CRM sidebar: only Logout here - Profile is in Settings. */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
           <Pressable
-            style={styles.profileRow}
-            onPress={() => {
-              close();
-              navigation.navigate("Profile");
-            }}
-          >
-            {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.profileName} numberOfLines={1}>
-                {technician?.name ?? "Technician"}
-              </Text>
-              <Text style={styles.profileRole} numberOfLines={1}>
-                {technician?.role ?? "Technician"}
-              </Text>
-            </View>
-          </Pressable>
-
-          <Pressable
-            style={styles.logoutRow}
+            style={({ pressed }) => [styles.logout, pressed && styles.logoutPressed]}
             onPress={() => {
               close();
               logout();
             }}
           >
-            <LogOut size={16} color={colors.rose600} />
+            <LogOut size={18} color={colors.rose600} />
             <Text style={styles.logoutText}>Logout</Text>
           </Pressable>
         </View>
@@ -163,13 +132,17 @@ const styles = StyleSheet.create({
   navItemActive: { backgroundColor: colors.brand700 },
   navLabel: { fontSize: 14, fontWeight: "600", color: colors.slate700 },
   navLabelActive: { color: colors.white },
-  footer: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.slate100, padding: 12, gap: 4 },
-  profileRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 8, borderRadius: 10, backgroundColor: colors.slate50 },
-  avatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.slate200, alignItems: "center", justifyContent: "center" },
-  avatarImage: { width: 34, height: 34, borderRadius: 17 },
-  avatarText: { fontSize: 12, fontWeight: "700", color: colors.slate600 },
-  profileName: { fontSize: 13, fontWeight: "600", color: colors.slate700 },
-  profileRole: { fontSize: 11, color: colors.brand600, marginTop: 1 },
-  logoutRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
-  logoutText: { fontSize: 13, fontWeight: "600", color: colors.rose600 },
+  footer: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.slate100, padding: 12 },
+  logout: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.rose200,
+  },
+  logoutPressed: { backgroundColor: colors.rose50 },
+  logoutText: { fontSize: 14, fontWeight: "600", color: colors.rose600 },
 });
