@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
   Image,
   StyleSheet,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -27,6 +28,17 @@ export default function LoginScreen() {
   const [remember, setRemember] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The version / copyright footer stays at the bottom: hidden while the
+  // keyboard is open instead of riding up above it.
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const [biometricBusy, setBiometricBusy] = useState(false);
   const showBiometric = biometricSupported && biometricEnabled && hasSavedLogin;
 
@@ -166,12 +178,14 @@ export default function LoginScreen() {
             </View>
           </ScrollView>
 
-          <View style={styles.footer}>
-            <Text style={styles.version}>Version 1.0.0</Text>
-            <Text style={styles.copyright}>
-              © {new Date().getFullYear()} <Text style={styles.copyrightBrand}>Katsana Technologies Ltd.</Text>
-            </Text>
-          </View>
+          {keyboardOpen ? null : (
+            <View style={styles.footer}>
+              <Text style={styles.version}>Version 1.0.0</Text>
+              <Text style={styles.copyright}>
+                © {new Date().getFullYear()} <Text style={styles.copyrightBrand}>Katsana Technologies Ltd.</Text>
+              </Text>
+            </View>
+          )}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
