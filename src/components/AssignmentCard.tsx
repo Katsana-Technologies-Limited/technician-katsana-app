@@ -68,7 +68,7 @@ export function AssignmentCard({
           </View>
           {assignment.speedotrackPending && (
             <Text style={styles.speedotrackText}>
-              Not added to Speedotrack - open to retry
+              Not added to GPS Server - open to retry
             </Text>
           )}
           {assignment.appointmentDate !== "-" && (

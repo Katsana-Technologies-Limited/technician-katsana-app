@@ -494,11 +494,11 @@ export default function InstallationFormScreen() {
                 {speedotrackPending && (
                   <View style={styles.speedotrackBanner}>
                     <Text style={styles.speedotrackBannerTitle}>
-                      Not added to Speedotrack
+                      Not added to GPS Server
                     </Text>
                     <Text style={styles.speedotrackBannerText}>
                       The installation is not completed yet because the device
-                      could not be confirmed on Speedotrack. Tap Retry to check
+                      could not be confirmed on the GPS Server. Tap Retry to check
                       again - you don't need to sign or take the photo again.
                     </Text>
                   </View>
@@ -584,7 +584,7 @@ export default function InstallationFormScreen() {
         ) : (
           <Button onPress={handleComplete} style={{ flex: 1 }} disabled={isSaving}>
             {isSaving
-              ? "Adding to Speedotrack..."
+              ? "Adding to GPS Server..."
               : speedotrackPending
                 ? "Retry"
                 : "Complete Installation"}
