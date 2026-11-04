@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, Alert } from "react-native";
-import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Check, AlertTriangle } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +27,8 @@ interface RechargeResult {
   message?: string | null;
 }
 
+const RECHARGE_COOLDOWN_MS = 5 * 60 * 1000;
+
 // `recharge` is null when the subscription had no SIM assigned (nothing to
 // report), otherwise its initial outcome: SUCCESS/FAILED are final,
 // PROCESSING means Success TopUp accepted the request but hasn't confirmed
@@ -38,9 +44,15 @@ function showRechargeAlert(recharge: RechargeResult | null | undefined) {
   if (recharge.status === "SUCCESS") {
     Alert.alert("SIM recharge successful", target);
   } else if (recharge.status === "PROCESSING") {
-    Alert.alert("SIM recharge submitted", `${target} - confirming with Success TopUp...`);
+    Alert.alert(
+      "SIM recharge submitted",
+      `${target} - confirming with Success TopUp...`,
+    );
   } else {
-    Alert.alert("SIM recharge failed", `${target}\n${recharge.message || "Unknown error"}`);
+    Alert.alert(
+      "SIM recharge failed",
+      `${target}\n${recharge.message || "Unknown error"}`,
+    );
   }
 }
 
@@ -71,12 +83,106 @@ function ProgressSkeleton({ onBack }: { onBack: () => void }) {
 }
 
 export default function InstallationProgressScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute<RouteProp<RootStackParamList, "InstallationProgress">>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route =
+    useRoute<RouteProp<RootStackParamList, "InstallationProgress">>();
   const insets = useSafeAreaInsets();
   const { id } = route.params;
-  const { detail, isLoading } = useAssignmentDetail(id);
+  const { detail, isLoading, refetch } = useAssignmentDetail(id);
   const [isStarting, setIsStarting] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const autoStartAttempted = useRef(false);
+
+  const handleStartInstallation = async () => {
+    setIsStarting(true);
+    try {
+      const res = await api.post(`/api/technician/assignments/${id}/start`);
+      const recharge = res.data?.recharge as RechargeResult | null | undefined;
+      if (recharge?.status === "SUCCESS") {
+        showRechargeAlert(recharge);
+        navigation.navigate("StartInstallation", { id });
+      } else {
+        showRechargeAlert(recharge);
+        await refetch();
+      }
+    } catch (err: any) {
+      Alert.alert(getErrorMessage(err, "Failed to start installation"));
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const assignmentForEffects = detail?.assignment;
+  const activationStatusForEffects = detail?.activationRechargeStatus;
+  const activationCompletedAtForEffects = detail?.activationRechargeCompletedAt
+    ? new Date(detail.activationRechargeCompletedAt).getTime()
+    : null;
+  const cooldownEndsAtForEffects = activationCompletedAtForEffects
+    ? activationCompletedAtForEffects + RECHARGE_COOLDOWN_MS
+    : null;
+  const cooldownRemainingForEffects = cooldownEndsAtForEffects
+    ? Math.max(0, cooldownEndsAtForEffects - now)
+    : 0;
+  const rechargeProcessingForEffects =
+    detail?.installationRechargeStatus === "PROCESSING";
+  const activationWaitingForEffects =
+    Boolean(assignmentForEffects?.accepted_at) &&
+    activationStatusForEffects !== "SUCCESS" &&
+    activationStatusForEffects !== "FAILED";
+
+  useEffect(() => {
+    if (
+      assignmentForEffects?.status === "In Progress" ||
+      !cooldownEndsAtForEffects ||
+      cooldownRemainingForEffects === 0
+    )
+      return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [
+    assignmentForEffects?.status,
+    cooldownEndsAtForEffects,
+    cooldownRemainingForEffects,
+  ]);
+
+  useEffect(() => {
+    if (
+      assignmentForEffects?.status !== "In Progress" ||
+      !rechargeProcessingForEffects
+    )
+      return;
+    const timer = setInterval(() => {
+      refetch();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [assignmentForEffects?.status, rechargeProcessingForEffects, refetch]);
+
+  useEffect(() => {
+    if (!activationWaitingForEffects) return;
+    const timer = setInterval(() => {
+      refetch();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [activationWaitingForEffects, refetch]);
+
+  useEffect(() => {
+    if (
+      !autoStartAttempted.current &&
+      assignmentForEffects?.status !== "In Progress" &&
+      activationStatusForEffects === "SUCCESS" &&
+      activationCompletedAtForEffects &&
+      cooldownRemainingForEffects === 0
+    ) {
+      autoStartAttempted.current = true;
+      handleStartInstallation();
+    }
+  }, [
+    activationCompletedAtForEffects,
+    activationStatusForEffects,
+    assignmentForEffects?.status,
+    cooldownRemainingForEffects,
+  ]);
 
   if (isLoading) {
     return <ProgressSkeleton onBack={() => navigation.goBack()} />;
@@ -89,49 +195,111 @@ export default function InstallationProgressScreen() {
 
   const raw = detail.assignment;
   const assignment = toDisplayAssignment(raw);
+  const activationCompletedAt = detail.activationRechargeCompletedAt
+    ? new Date(detail.activationRechargeCompletedAt).getTime()
+    : null;
+  const cooldownEndsAt = activationCompletedAt
+    ? activationCompletedAt + RECHARGE_COOLDOWN_MS
+    : null;
+  const cooldownRemaining = cooldownEndsAt
+    ? Math.max(0, cooldownEndsAt - now)
+    : 0;
+  const rechargeStatus = detail.installationRechargeStatus;
+  const activationStatus = detail.activationRechargeStatus;
+  const activationSucceeded = activationStatus === "SUCCESS";
+  const activationProcessing = activationStatus === "PROCESSING";
+  const rechargeSucceeded = rechargeStatus === "SUCCESS";
+  const rechargeProcessing = rechargeStatus === "PROCESSING";
 
   // Real status timestamps, not a fabricated granular timeline - matches
   // technician-katsana (web)'s InstallationProgress.tsx exactly.
   const steps = [
     { label: "Assigned", time: raw.assigned_on, done: true },
-    { label: "Technician Accepted", time: raw.accepted_at, done: Boolean(raw.accepted_at) },
-    { label: "Installation Started", time: raw.started_at, done: Boolean(raw.started_at) },
-    { label: "Installation Completed", time: raw.completed_at, done: Boolean(raw.completed_at) },
+    {
+      label: "Technician Accepted",
+      time: raw.accepted_at,
+      done: Boolean(raw.accepted_at),
+    },
+    {
+      label: "Installation Started",
+      time: raw.started_at,
+      done: Boolean(raw.started_at),
+    },
+    {
+      label: "Installation Completed",
+      time: raw.completed_at,
+      done: Boolean(raw.completed_at),
+    },
   ];
   const currentIdx = steps.findIndex((s) => !s.done);
 
-  // Start Installation itself now calls the API (flips status, fires the
-  // SIM recharge) before navigating on to the vehicle-info form - it's no
-  // longer just a link to that form. Already in progress - skip straight
-  // into the wizard, which resumes at whichever step was last saved (no API
-  // call needed, that already happened). Nothing left to do once Completed.
-  const handleStartInstallation = async () => {
+  const minutes = Math.floor(cooldownRemaining / 60000);
+  const seconds = Math.floor((cooldownRemaining % 60000) / 1000);
+  const cooldownLabel = `${minutes}:${String(seconds).padStart(2, "0")}`;
+  const waitingForRecharge =
+    raw.status !== "In Progress" &&
+    (!activationSucceeded || cooldownRemaining > 0);
+
+  const handleActivationRecharge = async () => {
     setIsStarting(true);
     try {
-      const res = await api.post(`/api/technician/assignments/${id}/start`);
+      const res = await api.post(`/api/technician/assignments/${id}/accept`);
       showRechargeAlert(res.data?.recharge);
-      navigation.navigate("StartInstallation", { id });
+      await refetch();
     } catch (err: any) {
-      Alert.alert(getErrorMessage(err, "Failed to start installation"));
+      Alert.alert(getErrorMessage(err, "Failed to recharge activation SIM"));
     } finally {
       setIsStarting(false);
     }
   };
 
+  const activationAction = {
+    label: isStarting
+      ? "Retrying activation recharge..."
+      : activationProcessing
+        ? "Confirming activation recharge..."
+        : "Retry Activation Recharge",
+    onPress: handleActivationRecharge,
+    disabled: isStarting || activationProcessing,
+  };
+
   const nextAction =
     raw.status === "In Progress"
-      ? { label: "Continue Installation", onPress: () => navigation.navigate("InstallationForm", { id }), disabled: false }
+      ? rechargeSucceeded
+        ? {
+            label: "Continue Installation",
+            onPress: () => navigation.navigate("InstallationForm", { id }),
+            disabled: false,
+          }
+        : {
+            label: isStarting
+              ? "Retrying installation recharge..."
+              : rechargeProcessing
+                ? "Processing installation recharge..."
+                : "Retry Installation Recharge",
+            onPress: handleStartInstallation,
+            disabled: isStarting || rechargeProcessing,
+          }
       : raw.status === "Completed"
         ? null
-        : {
-            label: isStarting ? "Starting..." : "Start Installation",
-            onPress: handleStartInstallation,
-            disabled: isStarting,
-          };
+        : !activationSucceeded
+          ? activationAction
+          : {
+              label: isStarting
+                ? "Processing installation recharge..."
+                : waitingForRecharge
+                  ? `Recharge available in ${cooldownLabel}`
+                  : "Start Installation",
+              onPress: handleStartInstallation,
+              disabled: isStarting || waitingForRecharge,
+            };
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Installation Progress" onBack={() => navigation.goBack()} />
+      <TopBar
+        title="Installation Progress"
+        onBack={() => navigation.goBack()}
+      />
       <Screen style={{ paddingBottom: 120 }}>
         <View style={styles.headerRow}>
           <Text style={styles.id}>{assignment.subscriptionNumber}</Text>
@@ -142,7 +310,11 @@ export default function InstallationProgressScreen() {
         <Card>
           {steps.map((step, idx) => {
             const isLast = idx === steps.length - 1;
-            const state = step.done ? "done" : idx === currentIdx ? "current" : "pending";
+            const state = step.done
+              ? "done"
+              : idx === currentIdx
+                ? "current"
+                : "pending";
             return (
               <View key={step.label} style={styles.stepRow}>
                 <View style={styles.stepIconCol}>
@@ -160,7 +332,9 @@ export default function InstallationProgressScreen() {
                     )}
                   </View>
                   {!isLast && (
-                    <View style={[styles.line, state === "done" && styles.lineDone]} />
+                    <View
+                      style={[styles.line, state === "done" && styles.lineDone]}
+                    />
                   )}
                 </View>
                 <View style={styles.stepBody}>
@@ -172,7 +346,11 @@ export default function InstallationProgressScreen() {
                   >
                     {step.label}
                   </Text>
-                  {step.time && <Text style={styles.stepTime}>{formatDateTime(step.time)}</Text>}
+                  {step.time && (
+                    <Text style={styles.stepTime}>
+                      {formatDateTime(step.time)}
+                    </Text>
+                  )}
                 </View>
               </View>
             );
@@ -182,7 +360,9 @@ export default function InstallationProgressScreen() {
 
       {nextAction && (
         <View style={[styles.stickyCta, { paddingBottom: insets.bottom + 10 }]}>
-          <Button onPress={nextAction.onPress} disabled={nextAction.disabled}>{nextAction.label}</Button>
+          <Button onPress={nextAction.onPress} disabled={nextAction.disabled}>
+            {nextAction.label}
+          </Button>
           <Button
             variant="danger"
             onPress={() => Alert.alert("Issue reported to dispatch")}
@@ -212,7 +392,12 @@ const styles = StyleSheet.create({
   },
   dotDone: { backgroundColor: colors.emerald500 },
   dotCurrent: { backgroundColor: colors.amber500 },
-  dotInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.white },
+  dotInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.white,
+  },
   line: { width: 2, flex: 1, minHeight: 24, backgroundColor: colors.slate200 },
   lineDone: { backgroundColor: colors.emerald500 },
   stepBody: { flex: 1, paddingBottom: 22, paddingTop: 4 },

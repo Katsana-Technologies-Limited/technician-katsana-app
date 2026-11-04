@@ -78,6 +78,20 @@ export interface AssignmentDetailResponse {
   assignment: RawAssignment;
   vehicle: AssignmentVehicle | null;
   installation: InstallationRecord | null;
+  installationRechargeStatus?:
+    | "SUCCESS"
+    | "FAILED"
+    | "PROCESSING"
+    | "SKIPPED"
+    | null;
+  activationRechargeStatus?:
+    | "SUCCESS"
+    | "FAILED"
+    | "PROCESSING"
+    | "SKIPPED"
+    | null;
+  activationRechargeCompletedAt?: string | null;
+  installationRechargeCompletedAt?: string | null;
 }
 
 export interface DisplayAssignment {
