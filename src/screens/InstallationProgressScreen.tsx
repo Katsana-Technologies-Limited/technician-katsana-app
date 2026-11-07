@@ -12,6 +12,7 @@ import { TopBar } from "@/components/TopBar";
 import { Screen } from "@/components/Screen";
 import { Card } from "@/components/Card";
 import { Badge } from "@/components/Badge";
+import { SimRechargeModal } from "@/components/SimRechargeModal";
 import { Button } from "@/components/Button";
 import { Skeleton } from "@/components/Skeleton";
 import { useAssignmentDetail } from "@/hooks/useAssignments";
@@ -27,34 +28,9 @@ interface RechargeResult {
   message?: string | null;
 }
 
-const RECHARGE_COOLDOWN_MS = 5 * 60 * 1000;
-
-// `recharge` is null when the subscription had no SIM assigned (nothing to
-// report), otherwise its initial outcome: SUCCESS/FAILED are final,
-// PROCESSING means Success TopUp accepted the request but hasn't confirmed
-// it yet (resolved later via webhook/poll).
-function showRechargeAlert(recharge: RechargeResult | null | undefined) {
-  if (!recharge) {
-    Alert.alert("Recharge skipped", "No SIM assigned to this subscription.");
-    return;
-  }
-  const target = recharge.mobile
-    ? `৳${recharge.amount ?? ""} to ${recharge.mobile}`
-    : `৳${recharge.amount ?? ""} recharge`;
-  if (recharge.status === "SUCCESS") {
-    Alert.alert("SIM recharge successful", target);
-  } else if (recharge.status === "PROCESSING") {
-    Alert.alert(
-      "SIM recharge submitted",
-      `${target} - confirming with Success TopUp...`,
-    );
-  } else {
-    Alert.alert(
-      "SIM recharge failed",
-      `${target}\n${recharge.message || "Unknown error"}`,
-    );
-  }
-}
+// Total wait the server applies between two recharges of one SIM (5 min +
+// 15 s margin) - only for the countdown's progress bar.
+const RECHARGE_GAP_SECONDS = 5 * 60 + 15;
 
 function ProgressSkeleton({ onBack }: { onBack: () => void }) {
   return (
@@ -89,25 +65,42 @@ export default function InstallationProgressScreen() {
     useRoute<RouteProp<RootStackParamList, "InstallationProgress">>();
   const insets = useSafeAreaInsets();
   const { id } = route.params;
-  const { detail, isLoading, refetch } = useAssignmentDetail(id);
+  const { detail, isLoading, refetch, fetchedAt } = useAssignmentDetail(id);
   const [isStarting, setIsStarting] = useState(false);
+  const [activationBusy, setActivationBusy] = useState(false);
+  // SIM Recharge modal: open on arrival; Close hides it (the page button
+  // reopens it).
+  const [modalOpen, setModalOpen] = useState(true);
+  // The installation recharge succeeded while this screen was open - the
+  // modal stays on its success state until Continue.
+  const [startedNow, setStartedNow] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const autoStartAttempted = useRef(false);
+  // The detail (fetchedAt) the auto Start Installation last fired for.
+  const autoStartedFor = useRef<number | null>(null);
 
+  // Start Installation (first try, sent automatically after the countdown)
+  // and Retry Installation Recharge - same endpoint. The modal shows the
+  // outcome from the refreshed detail.
   const handleStartInstallation = async () => {
     setIsStarting(true);
     try {
       const res = await api.post(`/api/technician/assignments/${id}/start`);
       const recharge = res.data?.recharge as RechargeResult | null | undefined;
-      if (recharge?.status === "SUCCESS") {
-        showRechargeAlert(recharge);
-        navigation.navigate("StartInstallation", { id });
-      } else {
-        showRechargeAlert(recharge);
-        await refetch();
-      }
+      if (recharge?.status === "SUCCESS") setStartedNow(true);
+      setModalOpen(true);
+      await refetch();
     } catch (err: any) {
-      Alert.alert(getErrorMessage(err, "Failed to start installation"));
+      // 409 = not yet (5-minute wait / activation not done): reload the
+      // real state - the countdown restarts from it and the automatic
+      // start fires again when it ends.
+      if (err?.response?.status === 409) {
+        await refetch();
+        if (err.response.data?.code !== "RECHARGE_COOLDOWN") {
+          Alert.alert(getErrorMessage(err, "Failed to start installation"));
+        }
+      } else {
+        Alert.alert(getErrorMessage(err, "Failed to start installation"));
+      }
     } finally {
       setIsStarting(false);
     }
@@ -115,48 +108,43 @@ export default function InstallationProgressScreen() {
 
   const assignmentForEffects = detail?.assignment;
   const activationStatusForEffects = detail?.activationRechargeStatus;
-  const activationCompletedAtForEffects = detail?.activationRechargeCompletedAt
-    ? new Date(detail.activationRechargeCompletedAt).getTime()
-    : null;
-  const cooldownEndsAtForEffects = activationCompletedAtForEffects
-    ? activationCompletedAtForEffects + RECHARGE_COOLDOWN_MS
-    : null;
+  // Deadline for the installation recharge (provider: same number only
+  // after 5 minutes): the server's seconds-remaining, counted from when
+  // this detail arrived - independent of the device's clock and timezone.
+  const availableInSeconds = detail?.installationRechargeAvailableInSeconds;
+  const cooldownEndsAt =
+    availableInSeconds == null || !fetchedAt
+      ? null
+      : fetchedAt + availableInSeconds * 1000;
+  const cooldownEndsAtForEffects = cooldownEndsAt;
   const cooldownRemainingForEffects = cooldownEndsAtForEffects
     ? Math.max(0, cooldownEndsAtForEffects - now)
     : 0;
-  const rechargeProcessingForEffects =
-    detail?.installationRechargeStatus === "PROCESSING";
+  const rechargePendingForEffects =
+    detail?.installationRechargeStatus !== "SUCCESS";
   const activationWaitingForEffects =
     Boolean(assignmentForEffects?.accepted_at) &&
-    activationStatusForEffects !== "SUCCESS" &&
-    activationStatusForEffects !== "FAILED";
+    activationStatusForEffects !== "SUCCESS";
 
+  // Ticks while a 5-minute wait runs - before the first installation
+  // recharge and before a retry (the job is In Progress then).
   useEffect(() => {
-    if (
-      assignmentForEffects?.status === "In Progress" ||
-      !cooldownEndsAtForEffects ||
-      cooldownRemainingForEffects === 0
-    )
-      return;
+    if (!cooldownEndsAtForEffects || cooldownRemainingForEffects === 0) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [
-    assignmentForEffects?.status,
-    cooldownEndsAtForEffects,
-    cooldownRemainingForEffects,
-  ]);
+  }, [cooldownEndsAtForEffects, cooldownRemainingForEffects]);
 
   useEffect(() => {
     if (
       assignmentForEffects?.status !== "In Progress" ||
-      !rechargeProcessingForEffects
+      !rechargePendingForEffects
     )
       return;
     const timer = setInterval(() => {
       refetch();
     }, 5000);
     return () => clearInterval(timer);
-  }, [assignmentForEffects?.status, rechargeProcessingForEffects, refetch]);
+  }, [assignmentForEffects?.status, rechargePendingForEffects, refetch]);
 
   useEffect(() => {
     if (!activationWaitingForEffects) return;
@@ -168,23 +156,26 @@ export default function InstallationProgressScreen() {
 
   useEffect(() => {
     if (
-      !autoStartAttempted.current &&
+      autoStartedFor.current !== fetchedAt &&
+      !isStarting &&
       assignmentForEffects?.status !== "In Progress" &&
       activationStatusForEffects === "SUCCESS" &&
-      activationCompletedAtForEffects &&
+      cooldownEndsAtForEffects !== null &&
       cooldownRemainingForEffects === 0
     ) {
-      autoStartAttempted.current = true;
+      autoStartedFor.current = fetchedAt;
       handleStartInstallation();
     }
   }, [
-    activationCompletedAtForEffects,
+    cooldownEndsAtForEffects,
     activationStatusForEffects,
+    fetchedAt,
+    isStarting,
     assignmentForEffects?.status,
     cooldownRemainingForEffects,
   ]);
 
-  if (isLoading) {
+  if (isLoading && !detail) {
     return <ProgressSkeleton onBack={() => navigation.goBack()} />;
   }
 
@@ -195,21 +186,13 @@ export default function InstallationProgressScreen() {
 
   const raw = detail.assignment;
   const assignment = toDisplayAssignment(raw);
-  const activationCompletedAt = detail.activationRechargeCompletedAt
-    ? new Date(detail.activationRechargeCompletedAt).getTime()
-    : null;
-  const cooldownEndsAt = activationCompletedAt
-    ? activationCompletedAt + RECHARGE_COOLDOWN_MS
-    : null;
   const cooldownRemaining = cooldownEndsAt
     ? Math.max(0, cooldownEndsAt - now)
     : 0;
   const rechargeStatus = detail.installationRechargeStatus;
   const activationStatus = detail.activationRechargeStatus;
   const activationSucceeded = activationStatus === "SUCCESS";
-  const activationProcessing = activationStatus === "PROCESSING";
   const rechargeSucceeded = rechargeStatus === "SUCCESS";
-  const rechargeProcessing = rechargeStatus === "PROCESSING";
 
   // Real status timestamps, not a fabricated granular timeline - matches
   // technician-katsana (web)'s InstallationProgress.tsx exactly.
@@ -236,63 +219,43 @@ export default function InstallationProgressScreen() {
   const minutes = Math.floor(cooldownRemaining / 60000);
   const seconds = Math.floor((cooldownRemaining % 60000) / 1000);
   const cooldownLabel = `${minutes}:${String(seconds).padStart(2, "0")}`;
-  const waitingForRecharge =
-    raw.status !== "In Progress" &&
-    (!activationSucceeded || cooldownRemaining > 0);
 
+  // Retry Activation Recharge = Accept again (nothing re-sent once it
+  // succeeded).
   const handleActivationRecharge = async () => {
-    setIsStarting(true);
+    setActivationBusy(true);
     try {
-      const res = await api.post(`/api/technician/assignments/${id}/accept`);
-      showRechargeAlert(res.data?.recharge);
+      await api.post(`/api/technician/assignments/${id}/accept`);
       await refetch();
     } catch (err: any) {
-      Alert.alert(getErrorMessage(err, "Failed to recharge activation SIM"));
+      Alert.alert(getErrorMessage(err, "Failed to recharge the SIM"));
     } finally {
-      setIsStarting(false);
+      setActivationBusy(false);
     }
   };
 
-  const activationAction = {
-    label: isStarting
-      ? "Retrying activation recharge..."
-      : activationProcessing
-        ? "Confirming activation recharge..."
-        : "Retry Activation Recharge",
-    onPress: handleActivationRecharge,
-    disabled: isStarting || activationProcessing,
+  const bothRecharged = activationSucceeded && rechargeSucceeded;
+  const continueInstallation = () => {
+    setModalOpen(false);
+    navigation.navigate(startedNow ? "StartInstallation" : "InstallationForm", { id });
   };
+  // Already fully recharged on arrival: no modal, just Continue.
+  const modalVisible =
+    modalOpen && raw.status !== "Completed" && (!bothRecharged || startedNow);
 
   const nextAction =
-    raw.status === "In Progress"
-      ? rechargeSucceeded
-        ? {
-            label: "Continue Installation",
-            onPress: () => navigation.navigate("InstallationForm", { id }),
-            disabled: false,
-          }
+    raw.status === "Completed"
+      ? null
+      : bothRecharged
+        ? { label: "Continue Installation", onPress: continueInstallation, disabled: false }
         : {
-            label: isStarting
-              ? "Retrying installation recharge..."
-              : rechargeProcessing
-                ? "Processing installation recharge..."
-                : "Retry Installation Recharge",
-            onPress: handleStartInstallation,
-            disabled: isStarting || rechargeProcessing,
-          }
-      : raw.status === "Completed"
-        ? null
-        : !activationSucceeded
-          ? activationAction
-          : {
-              label: isStarting
-                ? "Processing installation recharge..."
-                : waitingForRecharge
-                  ? `Recharge available in ${cooldownLabel}`
-                  : "Start Installation",
-              onPress: handleStartInstallation,
-              disabled: isStarting || waitingForRecharge,
-            };
+            label:
+              activationSucceeded && cooldownRemaining > 0
+                ? `SIM Recharge · ${cooldownLabel}`
+                : "SIM Recharge",
+            onPress: () => setModalOpen(true),
+            disabled: false,
+          };
 
   return (
     <View style={{ flex: 1 }}>
@@ -372,6 +335,21 @@ export default function InstallationProgressScreen() {
           </Button>
         </View>
       )}
+      <SimRechargeModal
+        visible={modalVisible}
+        activationStatus={detail.activationRechargeStatus ?? null}
+        activationMessage={detail.activationRechargeMessage}
+        activationBusy={activationBusy}
+        installationStatus={detail.installationRechargeStatus ?? null}
+        installationMessage={detail.installationRechargeMessage}
+        installationBusy={isStarting}
+        waitSeconds={Math.ceil(cooldownRemaining / 1000)}
+        totalWaitSeconds={RECHARGE_GAP_SECONDS}
+        onRetryActivation={handleActivationRecharge}
+        onRetryInstallation={handleStartInstallation}
+        onContinue={continueInstallation}
+        onClose={() => setModalOpen(false)}
+      />
     </View>
   );
 }

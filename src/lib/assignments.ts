@@ -92,6 +92,11 @@ export interface AssignmentDetailResponse {
     | null;
   activationRechargeCompletedAt?: string | null;
   installationRechargeCompletedAt?: string | null;
+  activationRechargeMessage?: string | null;
+  installationRechargeMessage?: string | null;
+  // Seconds until the installation recharge is allowed (server clock); null
+  // until the activation recharge has succeeded.
+  installationRechargeAvailableInSeconds?: number | null;
 }
 
 export interface DisplayAssignment {

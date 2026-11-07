@@ -39,6 +39,9 @@ export function useAssignmentDetail(id: number | undefined) {
   const [detail, setDetail] = useState<AssignmentDetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // When `detail` arrived (Date.now()) - for countdowns the server gives in
+  // seconds-remaining.
+  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
 
   const refetch = useCallback(async () => {
     if (!id) return;
@@ -46,6 +49,7 @@ export function useAssignmentDetail(id: number | undefined) {
     try {
       const res = await api.get(`/api/technician/assignments/${id}`);
       setDetail(res.data);
+      setFetchedAt(Date.now());
       setError(null);
     } catch (err: any) {
       setError(getErrorMessage(err, "Failed to load assignment"));
@@ -60,5 +64,5 @@ export function useAssignmentDetail(id: number | undefined) {
     }, [refetch]),
   );
 
-  return { detail, isLoading, error, refetch };
+  return { detail, isLoading, error, refetch, fetchedAt };
 }

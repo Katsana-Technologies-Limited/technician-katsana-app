@@ -103,16 +103,20 @@ export default function LoginScreen() {
               <Text style={styles.title}>Welcome Back!</Text>
               <Text style={styles.subtitle}>Login to continue to your account</Text>
 
-              <Input
-                label="Mobile Number / Employee ID"
-                placeholder="Enter mobile or employee id"
-                value={mobile}
-                onChangeText={setMobile}
-                autoCapitalize="none"
-                keyboardType="phone-pad"
-                style={styles.inputWithIcon}
-              />
-              <User size={18} color={colors.slate400} style={styles.inputIcon} />
+              {/* Own wrapper, like Password below - the icon is absolute, so
+                  without it it was placed against the whole card. */}
+              <View>
+                <Input
+                  label="Mobile Number / Employee ID"
+                  placeholder="Enter mobile or employee id"
+                  value={mobile}
+                  onChangeText={setMobile}
+                  autoCapitalize="none"
+                  keyboardType="phone-pad"
+                  style={styles.inputWithIcon}
+                />
+                <User size={18} color={colors.slate400} style={styles.inputIcon} />
+              </View>
 
               <View>
                 <Input
